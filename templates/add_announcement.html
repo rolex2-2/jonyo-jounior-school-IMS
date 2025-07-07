@@ -1,0 +1,100 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .form-control {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+    }
+    .form-group i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        width: 100%;
+        font-size: 1.1em;
+        transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary i {
+        margin-right: 8px;
+    }
+    .error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+    .alert {
+        margin-bottom: 20px;
+    }
+    h3 i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+</style>
+<div class="form-container">
+    <h3><i class="fas fa-bullhorn"></i> Add Announcement</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST" class="needs-validation" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="content"><i class="fas fa-comment"></i> Announcement Content</label>
+            {{ form.content(class="form-control", id="content", rows=5, required=True, **{'aria-describedby': 'content-error'}) }}
+            {% if form.content.errors %}
+                <span id="content-error" class="error">{{ form.content.errors[0] }}</span>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary" aria-label="Submit Announcement"><i class="fas fa-paper-plane"></i> Submit</button>
+    </form>
+</div>
+<script>
+    (function () {
+        'use strict';
+        var forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+</script>
+{% endblock %}

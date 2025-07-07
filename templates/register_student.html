@@ -1,0 +1,181 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .form-control {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .form-group i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        width: 100%;
+        font-size: 1.1em;
+        transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary i {
+        margin-right: 8px;
+    }
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    .error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+    .flash-message {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .flash-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .info-note {
+        background-color: #e7f3fe;
+        color: #31708f;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 0.95em;
+    }
+    .term-info {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .term-info h4 {
+        margin-bottom: 10px;
+        color: #4682b4;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 15px;
+            margin: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .btn-primary, .btn-secondary, .btn-danger {
+            font-size: 1em;
+            padding: 10px;
+        }
+    }
+</style>
+<div class="form-container">
+    <h3>Register Student</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <div class="info-note">
+        <p><strong>Note:</strong> The username will be generated from the student's name (e.g., "Rolex Oshia" → "rolex_oshia"). The password will be the first letter of their first name plus their admission number (e.g., "R-0000").</p>
+    </div>
+    <form method="POST" action="{{ url_for('register_student') }}">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="admission_no"><i class="fas fa-id-card"></i> Admission Number</label>
+            {{ form.admission_no(class="form-control", id="admission_no", placeholder="e.g., 0000", **{'aria-label': 'Admission Number', 'aria-describedby': 'admission_no_help'}) }}
+            <small id="admission_no_help" class="form-text text-muted">Enter a unique admission number.</small>
+            {% for error in form.admission_no.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="name"><i class="fas fa-user"></i> Name</label>
+            {{ form.name(class="form-control", id="name", placeholder="e.g., Rolex Oshia", **{'aria-label': 'Student Name', 'aria-describedby': 'name_help'}) }}
+            <small id="name_help" class="form-text text-muted">Enter the student's full name.</small>
+            {% for error in form.name.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="grade"><i class="fas fa-graduation-cap"></i> Grade</label>
+            {{ form.grade(class="form-control", id="grade", **{'aria-label': 'Grade', 'aria-describedby': 'grade_help'}) }}
+            <small id="grade_help" class="form-text text-muted">Select the student's grade.</small>
+            {% for error in form.grade.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Register Student</button>
+    </form>
+    <div style="margin-top: 15px;">
+        <a href="{{ url_for('upload_bulk_students') }}" class="btn btn-secondary"><i class="fas fa-upload"></i> Bulk Upload Students</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+    <div class="term-info">
+        <h4>Term Information</h4>
+        <p><strong>Term:</strong> {{ term_info.term }}</p>
+        <p><strong>Year:</strong> {{ term_info.year }}</p>
+        <p><strong>Principal:</strong> {{ term_info.principal }}</p>
+        <p><strong>Start Date:</strong> {{ term_info.start_date }}</p>
+        <p><strong>End Date:</strong> {{ term_info.end_date }}</p>
+    </div>
+</div>
+{% endblock %}

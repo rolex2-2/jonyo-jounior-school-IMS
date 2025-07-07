@@ -1,0 +1,231 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        background-color: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+        color: #333;
+    }
+    .form-select, .form-control {
+        padding: 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .form-select.is-invalid, .form-control.is-invalid {
+        border-color: #dc3545;
+    }
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    .form-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        border-radius: 4px;
+        color: #fff;
+        transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary:disabled {
+        background-color: #a3bffa;
+        cursor: not-allowed;
+    }
+    .alert {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        border-radius: 4px;
+    }
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .alert București
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    h3 {
+        color: #333;
+        margin-bottom: 1.5rem;
+        font-size: 1.8rem;
+    }
+    #loadingSpinner {
+        margin-left: 1rem;
+        color: #4682b4;
+        font-weight: bold;
+        display: none;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 1rem;
+        }
+        .btn-primary {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+        }
+    }
+</style>
+<section class="form-container" aria-labelledby="download-report-card-heading">
+    <h3 id="download-report-card-heading">Download Report Cards (Zipped PDFs)</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('download_report_card') }}" class="needs-validation" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="{{ form.grade.id }}"><i class="fas fa-graduation-cap"></i> {{ form.grade.label }}</label>
+            {{ form.grade(class_="form-select" ~ (" is-invalid" if form.grade.errors else ""), id=form.grade.id, **{"aria-describedby": "gradeHelp"}) }}
+            <small id="gradeHelp" class="form-text">
+                {% if form.grade.choices|length > 1 %}
+                    Select the grade for report cards.
+                {% else %}
+                    No grades available. Contact the administrator to add students.
+                {% endif %}
+            </small>
+            {% if form.grade.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.grade.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.term.id }}"><i class="fas fa-calendar-alt"></i> {{ form.term.label }}</label>
+            {{ form.term(class_="form-select" ~ (" is-invalid" if form.term.errors else ""), id=form.term.id, **{"aria-describedby": "termHelp"}) }}
+            <small id="termHelp" class="form-text">
+                {% if form.term.choices|length > 0 %}
+                    Select the term for report cards.
+                {% else %}
+                    No terms available. Contact the administrator.
+                {% endif %}
+            </small>
+            {% if form.term.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.term.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.year.id }}"><i class="fas fa-calendar"></i> {{ form.year.label }}</label>
+            {{ form.year(class_="form-control" ~ (" is-invalid" if form.year.errors else ""), id=form.year.id, **{"aria-describedby": "yearHelp"}) }}
+            <small id="yearHelp" class="form-text">
+                Enter the year for report cards (e.g., 2025).
+            </small>
+            {% if form.year.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.year.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.exam_type.id }}"><i class="fas fa-file-alt"></i> {{ form.exam_type.label }}</label>
+            {{ form.exam_type(class_="form-select" ~ (" is-invalid" if form.exam_type.errors else ""), id=form.exam_type.id, **{"aria-describedby": "examTypeHelp"}) }}
+            <small id="examTypeHelp" class="form-text">
+                {% if form.exam_type.choices|length > 0 %}
+                    Select the exam type for report cards.
+                {% else %}
+                    No exam types available. Contact the administrator.
+                {% endif %}
+            </small>
+            {% if form.exam_type.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.exam_type.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        {% if current_user.role == 'parent' %}
+        <div class="form-group">
+            <label for="{{ form.admission_no.id }}"><i class="fas fa-id-card"></i> {{ form.admission_no.label }}</label>
+            {{ form.admission_no(class_="form-select" ~ (" is-invalid" if form.admission_no.errors else ""), id=form.admission_no.id, **{"aria-describedby": "admissionNoHelp"}) }}
+            <small id="admissionNoHelp" class="form-text">
+                {% if form.admission_no.choices|length > 0 %}
+                    Select the student’s admission number.
+                {% else %}
+                    No students linked. Contact the administrator.
+                {% endif %}
+            </small>
+            {% if form.admission_no.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.admission_no.errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary" id="submitBtn"><i class="fas fa-download"></i> Download</button>
+        <span id="loadingSpinner" aria-live="polite">Generating report cards...</span>
+    </form>
+    <div class="mt-3">
+        <small class="form-text">
+            Note: If no report cards are generated, ensure marks are entered for the selected grade, term, year, and exam type. Contact the administrator for assistance.
+        </small>
+    </div>
+</section>
+<script>
+    (function () {
+        'use strict';
+        const form = document.querySelector('form.needs-validation');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            } else {
+                if (!confirm('Generating report cards may take a while. Proceed?')) {
+                    event.preventDefault();
+                } else {
+                    submitBtn.disabled = true;
+                    loadingSpinner.style.display = 'inline';
+                }
+            }
+            form.classList.add('was-validated');
+        });
+
+        window.addEventListener('load', function () {
+            submitBtn.disabled = false;
+            loadingSpinner.style.display = 'none';
+        });
+    })();
+</script>
+{% endblock %}

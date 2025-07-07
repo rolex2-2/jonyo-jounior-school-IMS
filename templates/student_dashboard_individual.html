@@ -1,0 +1,104 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .dashboard-container {
+        max-width: 900px;
+        margin: 20px auto;
+        background-color: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: #fff;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        margin: 10px 0;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .table {
+        width: 100%;
+        margin-top: 20px;
+    }
+    .table th, .table td {
+        padding: 12px;
+        text-align: left;
+    }
+    .alert-info {
+        color: #0c5460;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .flash-message {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .flash-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .flash-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+</style>
+<div class="dashboard-container">
+    <h3><i class="fas fa-user-graduate"></i> Student Dashboard: {{ student.name }}</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <p><strong>Admission Number:</strong> {{ student.admission_no }}</p>
+    <p><strong>Grade:</strong> {{ student.grade }}</p>
+    <h4><i class="fas fa-chart-bar"></i> Academic Performance</h4>
+    {% if marks %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Learning Area</th>
+                    <th>Marks</th>
+                    <th>Exam Type</th>
+                    <th>Total Marks</th>
+                    <th>Grade</th>
+                    <th>Performance Level</th>
+                    <th>Term</th>
+                    <th>Year</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mark in marks %}
+                    <tr>
+                        <td>{{ mark.learning_area }}</td>
+                        <td>{{ mark.marks }}</td>
+                        <td>{{ mark.exam_type }}</td>
+                        <td>{{ mark.total_marks or '-' }}</td>
+                        <td>{{ mark.grade or '-' }}</td>
+                        <td>{{ mark.performance_level or '-' }}</td>
+                        <td>{{ mark.term }}</td>
+                        <td>{{ mark.year }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info">No marks available for this student.</div>
+    {% endif %}
+    <a href="{{ url_for('parent_dashboard') }}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+</div>
+{% endblock %}

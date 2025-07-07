@@ -1,0 +1,128 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-label {
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+    .form-control, .form-select {
+        border-radius: 5px;
+        padding: 8px;
+        font-size: 16px;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: #fff;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        margin-right: 10px;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    .alert {
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+    }
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+    }
+    .form-text {
+        font-size: 0.875rem;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 16px;
+            margin: 10px;
+        }
+    }
+</style>
+<div class="form-container">
+    <h3><i class="fas fa-file-download"></i> Download Fee Statement</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'warning' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('download_fee_statement_excel') }}" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="grade" class="form-label"><i class="fas fa-graduation-cap"></i> Grade</label>
+            {{ form.grade(class="form-select" + (" is-invalid" if form.grade.errors else ""), id="grade", aria_describedby="gradeHelp") }}
+            <small id="gradeHelp" class="form-text text-muted">Select the grade (7, 8, 9, or All).</small>
+            {% for error in form.grade.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="term" class="form-label"><i class="fas fa-calendar"></i> Term</label>
+            {{ form.term(class="form-select" + (" is-invalid" if form.term.errors else ""), id="term", aria_describedby="termHelp") }}
+            <small id="termHelp" class="form-text text-muted">Select the term (Term 1, Term 2, or Term 3).</small>
+            {% for error in form.term.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="year" class="form-label"><i class="fas fa-calendar-alt"></i> Year</label>
+            {{ form.year(class="form-control" + (" is-invalid" if form.year.errors else ""), id="year", placeholder="e.g., 2025", aria_describedby="yearHelp") }}
+            <small id="yearHelp" class="form-text text-muted">Enter the year (e.g., 2025).</small>
+            {% for error in form.year.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary" id="submitBtn" aria-label="Generate Excel Fee Statement"><i class="fas fa-file-excel"></i> Download Excel</button>
+        <span id="loadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
+    </form>
+    <div style="margin-top: 15px;">
+        <a href="{{ url_for('bursar_dashboard' if current_user.role == 'bursar' else 'dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const submitBtn = document.querySelector('#submitBtn');
+        const spinner = document.querySelector('#loadingSpinner');
+        
+        form.addEventListener('submit', function(e) {
+            if (submitBtn && spinner) {
+                submitBtn.disabled = true;
+                spinner.style.display = 'inline';
+            }
+        });
+    });
+</script>
+{% endblock %}

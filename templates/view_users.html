@@ -1,0 +1,142 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 25px;
+    }
+    .group-section {
+        margin-bottom: 30px;
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .group-section h4 {
+        color: #4682b4;
+        margin-bottom: 15px;
+    }
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table th, .table td {
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        text-align: left;
+    }
+    .table th {
+        background-color: #4682b4;
+        color: white;
+    }
+    .table tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    .btn-danger i {
+        margin-right: 8px;
+    }
+    .flash-message {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .flash-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    @media (max-width: 600px) {
+        .container {
+            padding: 15px;
+        }
+        .table th, .table td {
+            padding: 8px;
+            font-size: 0.9em;
+        }
+        .btn-danger {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+    }
+</style>
+<div class="container">
+    <h3>View Users</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    {% for group_name, group in grouped_users.items() %}
+        {% if group %}
+            <div class="group-section">
+                <h4>
+                    {% if group_name == 'admin' %}Administrators
+                    {% elif group_name == 'teacher' %}Teachers
+                    {% elif group_name == 'bursar' %}Bursars
+                    {% elif group_name == 'parent' %}Parents
+                    {% elif group_name == 'learners_grade7' %}Learners - Grade 7
+                    {% elif group_name == 'learners_grade8' %}Learners - Grade 8
+                    {% elif group_name == 'learners_grade9' %}Learners - Grade 9
+                    {% endif %}
+                </h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Admission No</th>
+                            {% if group_name.startswith('learners_grade') %}
+                                <th>Grade</th>
+                            {% endif %}
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in group %}
+                            <tr>
+                                <td>{{ user[1] or 'N/A' }}</td>
+                                <td>{{ user[4] or 'N/A' }}</td>
+                                {% if group_name.startswith('learners_grade') %}
+                                    <td>{{ user[3] or 'N/A' }}</td>
+                                {% endif %}
+                                <td>{{ user[2] | capitalize }}</td>
+                                <td>
+                                    <form action="{{ url_for('delete_user', user_id=user[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ user[1] or 'this user' }}? This action cannot be undone.');">
+                                        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endfor %}
+    
+    <a href="{{ url_for('dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+</div>
+<script>
+    // Ensure CSRF token is available
+</script>
+{% endblock %}

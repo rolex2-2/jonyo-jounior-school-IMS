@@ -1,0 +1,66 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .content-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    h2 {
+        color: #4682b4;
+        margin-bottom: 20px;
+    }
+    h2 i {
+        margin-right: 10px;
+    }
+    p {
+        line-height: 1.6;
+        margin-bottom: 15px;
+    }
+    .term-info {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .term-info p {
+        font-style: italic;
+        color: #6c757d;
+    }
+    .alert {
+        margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+        .content-container {
+            padding: 15px;
+        }
+        h2 {
+            font-size: 1.5em;
+        }
+    }
+</style>
+<div class="content-container">
+    <h2><i class="fas fa-school"></i> About Jonyo Junior Secondary School</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% if about_content %}
+        <p>{{ about_content | safe }}</p>
+    {% else %}
+        <p>Jonyo Junior Secondary School is dedicated to providing quality education and fostering a supportive learning environment for students in grades 7 to 9. Our mission is to empower students with knowledge, skills, and values to excel in their academic and personal lives.</p>
+    {% endif %}
+    {% if term_info %}
+        <div class="term-info">
+            <p>Current Term: {{ term_info.term }} {{ term_info.year }}</p>
+            <p>Principal: {{ term_info.principal }}</p>
+            <p>Term Dates: {{ term_info.start_date }} to {{ term_info.end_date }}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

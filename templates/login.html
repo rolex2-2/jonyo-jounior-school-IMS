@@ -1,0 +1,133 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 50px auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .form-control, .form-select {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+    }
+    .form-group i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        width: 100%;
+        font-size: 1.1em;
+        transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary i {
+        margin-right: 8px;
+    }
+    .error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+    .toggle-password {
+        position: absolute;
+        right: 15px;
+        top: 65%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #4682b4;
+        font-size: 1.2em;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .toggle-password {
+            top: 60%;
+            right: 10px;
+        }
+    }
+</style>
+<div class="form-container">
+    <h3><i class="fas fa-sign-in-alt"></i> Login</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('login') }}">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="username"><i class="fas fa-user"></i> Username</label>
+            {{ form.username(class="form-control", id="username") }}
+            {% for error in form.username.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="password"><i class="fas fa-lock"></i> Password</label>
+            {{ form.password(class="form-control", id="password") }}
+            <i class="fas fa-eye toggle-password" onclick="togglePassword('password')" aria-label="Toggle password visibility" role="button"></i>
+            {% for error in form.password.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="role"><i class="fas fa-user-tag"></i> Role</label>
+            {{ form.role(class="form-select", id="role") }}
+            {% for error in form.role.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
+    </form>
+    <p class="mt-3 text-center">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+</div>
+<script>
+    function togglePassword(id) {
+        const input = document.getElementById(id);
+        const icon = input.nextElementSibling;
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+            icon.setAttribute('aria-label', 'Hide password');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+            icon.setAttribute('aria-label', 'Show password');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .form-control, .form-control-file {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+    }
+    .form-group i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        width: 100%;
+        font-size: 1.1em;
+        transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary i {
+        margin-right: 8px;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    .error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+    .flash-message {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .flash-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .flash-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .info-note {
+        background-color: #e7f3fe;
+        color: #31708f;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 0.95em;
+    }
+    .term-info {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .term-info h4 {
+        margin-bottom: 10px;
+        color: #4682b4;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .btn-primary, .btn-danger {
+            font-size: 1em;
+            padding: 10px;
+        }
+    }
+</style>
+<div class="form-container">
+    <h3>Upload Bulk Students</h3>
+    <div class="info-note">
+        <p><strong>Note:</strong> Upload an Excel file (.xlsx) with columns: <code>Admission No</code>, <code>Name</code>. Usernames will be generated from the full name (e.g., "Rolex Oshia" → "rolex_oshia"). Passwords will be the first letter of the first name plus the admission number (e.g., "R-230"). Example: <a href="{{ url_for('static', filename='templates/bulk_students_template.xlsx') }}" download>Download Template</a></p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_bulk_students') }}">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="grade"><i class="fas fa-graduation-cap"></i> Grade</label>
+            {{ form.grade(class="form-control", id="grade") }}
+            {% for error in form.grade.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="file"><i class="fas fa-file-upload"></i> Excel File</label>
+            {{ form.file(class="form-control-file", id="file") }}
+            {% for error in form.file.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload Students</button>
+    </form>
+    <div style="margin-top: 15px;">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+    <div class="term-info">
+        <h4>Term Information</h4>
+        <p><strong>Term:</strong> {{ term_info.term }}</p>
+        <p><strong>Year:</strong> {{ term_info.year }}</p>
+        <p><strong>Principal:</strong> {{ term_info.principal }}</p>
+        <p><strong>Start Date:</strong> {{ term_info.start_date }}</p>
+        <p><strong>End Date:</strong> {{ term_info.end_date }}</p>
+    </div>
+</div>
+{% endblock %}

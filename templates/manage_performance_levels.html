@@ -1,0 +1,250 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 20px auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .form-control, .form-select {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .form-group i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1.1em;
+        transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary i {
+        margin-right: 8px;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    .btn-danger.delete-all {
+        margin-top: 10px;
+    }
+    .btn-danger i {
+        margin-right: 8px;
+    }
+    .error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+    .flash-message {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .flash-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .table-responsive {
+        margin-top: 20px;
+    }
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table th, .table td {
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        text-align: center;
+        vertical-align: middle;
+    }
+    .table th {
+        background-color: #4682b4;
+        color: white;
+    }
+    .table tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    .term-info {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .term-info h4 {
+        margin-bottom: 10px;
+        color: #4682b4;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 15px;
+            margin: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .btn-primary, .btn-danger {
+            font-size: 1em;
+            padding: 10px;
+        }
+        .table th, .table td {
+            padding: 8px;
+            font-size: 0.9em;
+        }
+    }
+</style>
+<div class="form-container">
+    <h3>Manage Performance Levels</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('manage_performance_levels') }}">
+        {{ form.hidden_tag() }}
+        <div class="row mb-3">
+            <div class="col-md-4 form-group">
+                <label for="min_mark"><i class="fas fa-tachometer-alt"></i> Minimum Mark</label>
+                {{ form.min_mark(class="form-control", id="min_mark", placeholder="e.g., 80", required=True, **{'aria-label': 'Minimum Mark'}) }}
+                {% for error in form.min_mark.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+            <div class="col-md-4 form-group">
+                <label for="max_mark"><i class="fas fa-tachometer-alt"></i> Maximum Mark</label>
+                {{ form.max_mark(class="form-control", id="max_mark", placeholder="e.g., 100", required=True, **{'aria-label': 'Maximum Mark'}) }}
+                {% for error in form.max_mark.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+            <div class="col-md-4 form-group">
+                <label for="level"><i class="fas fa-star"></i> Level</label>
+                {{ form.level(class="form-control", id="level", placeholder="e.g., Exceeds Expectations", required=True, **{'aria-label': 'Level'}) }}
+                {% for error in form.level.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4 form-group">
+                <label for="points"><i class="fas fa-medal"></i> Points</label>
+                {{ form.points(class="form-control", id="points", placeholder="e.g., 12", required=True, **{'aria-label': 'Points'}) }}
+                {% for error in form.points.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+            <div class="col-md-4 form-group">
+                <label for="type"><i class="fas fa-tags"></i> Type</label>
+                {{ form.type(class="form-select", id="type", required=True, **{'aria-label': 'Type'}) }}
+                {% for error in form.type.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+            <div class="col-md-4 form-group">
+                <label for="comment"><i class="fas fa-comment"></i> Comment</label>
+                {{ form.comment(class="form-control", id="comment", placeholder="e.g., Excellent Performance", required=True, **{'aria-label': 'Comment'}) }}
+                {% for error in form.comment.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add/Update Performance Level</button>
+    </form>
+
+    {% if performance_levels %}
+        <div class="table-responsive mt-4">
+            <h4>Current Performance Levels</h4>
+            <form action="{{ url_for('delete_all_performance_levels') }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger delete-all" onclick="return confirm('Are you sure you want to delete ALL performance levels? This action cannot be undone.');">
+                    <i class="fas fa-trash-alt"></i> Delete All Performance Levels
+                </button>
+            </form>
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Min Mark</th>
+                        <th>Max Mark</th>
+                        <th>Level</th>
+                        <th>Points</th>
+                        <th>Comment</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for level in performance_levels %}
+                        <tr>
+                            <td>{{ level[1] }}</td>
+                            <td>{{ level[2] }}</td>
+                            <td>{{ level[3] }}</td>
+                            <td>{{ level[4] }}</td>
+                            <td>{{ level[5] }}</td>
+                            <td>{{ level[6] | capitalize }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_performance_level', level_id=level[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete the performance level \"{{ level[3] }}\" ({{ level[6] | capitalize }})? This action cannot be undone.');">
+                                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="mt-4">No performance levels found.</p>
+    {% endif %}
+
+    <div class="term-info">
+        <h4>Term Information</h4>
+        <p><strong>Term:</strong> {{ term_info.term }}</p>
+        <p><strong>Year:</strong> {{ term_info.year }}</p>
+        <p><strong>Principal:</strong> {{ term_info.principal }}</p>
+        <p><strong>Start Date:</strong> {{ term_info.start_date }}</p>
+        <p><strong>End Date:</strong> {{ term_info.end_date }}</p>
+    </div>
+
+    <a href="{{ url_for('dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+</div>
+{% endblock %}

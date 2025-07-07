@@ -1,0 +1,65 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1.1em;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+</style>
+<div class="form-container">
+    <h3>Messages</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% if messages %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    {% if is_admin %}
+                        <th>Sender</th>
+                    {% else %}
+                        <th>Sender ID</th>
+                    {% endif %}
+                    <th>Message</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for message in messages %}
+                    <tr>
+                        {% if is_admin %}
+                            <td>{{ message[2] }}</td> <!-- sender_username -->
+                        {% else %}
+                            <td>{{ message[0] }}</td> <!-- sender_id -->
+                        {% endif %}
+                        <td>{{ message[1] }}</td> <!-- content -->
+                        <td>{{ message[2] if is_admin else message[2] }}</td> <!-- timestamp -->
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No messages found.</p>
+    {% endif %}
+    <p><a href="{{ url_for('dashboard') }}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a></p>
+</div>
+{% endblock %}

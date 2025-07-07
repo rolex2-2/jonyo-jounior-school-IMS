@@ -1,0 +1,386 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 20px auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .form-group {
+        margin-bottom: 15px;
+        position: relative;
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .form-control, .form-select {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+    }
+    .form-group i {
+        color: #4682b4;
+        margin-right: 10px;
+    }
+    .table-responsive {
+        margin-top: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        text-align: left;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        transition: background-color 0.3s;
+        cursor: pointer;
+        margin-right: 10px;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+    .btn-primary i {
+        margin-right: 8px;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    .error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+    .flash-message {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .flash-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .flash-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .info-note {
+        background-color: #e7f3fe;
+        color: #31708f;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 0.95em;
+    }
+    .term-info, .content-section {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .term-info h4, .content-section h4 {
+        margin-bottom: 10px;
+        color: #4682b4;
+    }
+    .autocomplete-suggestions {
+        border: 1px solid #ced4da;
+        background: #fff;
+        max-height: 200px;
+        overflow-y: auto;
+        position: absolute;
+        z-index: 1000;
+        width: 100%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .autocomplete-suggestion {
+        padding: 10px;
+        cursor: pointer;
+    }
+    .autocomplete-suggestion:hover {
+        background: #f0f0f0;
+    }
+    @media (max-width: 600px) {
+        .form-container {
+            padding: 15px;
+            margin: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .table {
+            font-size: 0.9em;
+        }
+        .btn-primary, .btn-danger {
+            font-size: 0.95em;
+            padding: 8px;
+        }
+    }
+</style>
+<div class="form-container">
+    <h3><i class="fas fa-money-bill"></i> Fee Management</h3>
+    <div class="info-note">
+        <p>Use the filter form to view fees for a specific grade, term, and year. Use the update form to modify or add fees for a student. Download fee statements in PDF or Excel format.</p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <h4>Filter Fees</h4>
+    <form method="POST" action="{{ url_for('manage_fees') }}">
+        {{ filter_form.hidden_tag() }}
+        <div class="form-group">
+            <label for="filter_grade"><i class="fas fa-graduation-cap"></i> Grade</label>
+            {{ filter_form.grade(class="form-select", id="filter_grade") }}
+            {% for error in filter_form.grade.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="filter_term"><i class="fas fa-calendar"></i> Term</label>
+            {{ filter_form.term(class="form-select", id="filter_term") }}
+            {% for error in filter_form.term.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="filter_year"><i class="fas fa-calendar-alt"></i> Year</label>
+            {{ filter_form.year(class="form-control", id="filter_year", placeholder="e.g., 2025") }}
+            {% for error in filter_form.year.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter Fees</button>
+        {% if fees_data %}
+            <a href="{{ url_for('download_fee_statement_excel', grade=filter_form.grade.data, term=filter_form.term.data, year=filter_form.year.data, format='pdf') }}" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Download PDF</a>
+            <a href="{{ url_for('download_fee_statement_excel', grade=filter_form.grade.data, term=filter_form.term.data, year=filter_form.year.data, format='excel') }}" class="btn btn-primary"><i class="fas fa-file-excel"></i> Download Excel</a>
+        {% endif %}
+    </form>
+    {% if fees_data %}
+        <h4 style="margin-top: 20px;">Fee Details</h4>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Admission No</th>
+                        <th>Name</th>
+                        <th>Total Fee</th>
+                        <th>Amount Paid</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fee in fees_data %}
+                        <tr>
+                            <td>{{ fee.admission_no }}</td>
+                            <td>{{ fee.name }}</td>
+                            <td>{{ fee.total_fee | format_currency }}</td>
+                            <td>{{ fee.amount_paid | format_currency }}</td>
+                            <td>{{ fee.balance | format_currency }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p style="margin-top: 20px;">No fee records found.</p>
+    {% endif %}
+    {% if payment_history %}
+        <h4 style="margin-top: 20px;">Payment History</h4>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Admission No</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Term</th>
+                        <th>Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payment_history %}
+                        <tr>
+                            <td>{{ payment.admission_no }}</td>
+                            <td>{{ payment.amount | format_currency }}</td>
+                            <td>{{ payment.date | datetimeformat }}</td>
+                            <td>{{ payment.term }}</td>
+                            <td>{{ payment.year }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    <h4 style="margin-top: 20px;">Update Fees</h4>
+    <form method="POST" action="{{ url_for('manage_fees') }}" id="updateFeeForm">
+        {{ update_form.hidden_tag() }}
+        {{ update_form.admission_no }}
+        <div class="form-group">
+            <label for="learner_name"><i class="fas fa-user"></i> Learner Name</label>
+            {{ update_form.learner_name(class="form-control", id="learner_name", placeholder="Enter learner name", autocomplete="off") }}
+            <div id="autocomplete-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+            {% for error in update_form.learner_name.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="update_total_fee"><i class="fas fa-money-bill"></i> Total Fee</label>
+            {{ update_form.total_fee(class="form-control", id="update_total_fee", placeholder="Enter total fee") }}
+            {% for error in update_form.total_fee.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="update_amount_paid"><i class="fas fa-money-check"></i> Amount Paid</label>
+            {{ update_form.amount_paid(class="form-control", id="update_amount_paid", placeholder="Enter amount paid") }}
+            {% for error in update_form.amount_paid.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="update_grade"><i class="fas fa-graduation-cap"></i> Grade</label>
+            {{ update_form.grade(class="form-select", id="update_grade") }}
+            {% for error in update_form.grade.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="update_term"><i class="fas fa-calendar"></i> Term</label>
+            {{ update_form.term(class="form-select", id="update_term") }}
+            {% for error in update_form.term.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="update_year"><i class="fas fa-calendar-alt"></i> Year</label>
+            {{ update_form.year(class="form-control", id="update_year", placeholder="e.g., 2025") }}
+            {% for error in update_form.year.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+        {{ update_form.format }}
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Fees</button>
+    </form>
+    <div style="margin-top: 15px;">
+        <a href="{{ url_for('bursar_dashboard' if current_user.role == 'bursar' else 'dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+    <div class="term-info">
+        <h4>Term Information</h4>
+        <p><strong>Term:</strong> {{ term_info.term | default('Not Set') }}</p>
+        <p><strong>Year:</strong> {{ term_info.year | default('Not Set') }}</p>
+        <p><strong>Principal:</strong> {{ term_info.principal | default('Not Set') }}</p>
+        <p><strong>Start Date:</strong> {{ term_info.start_date | default('Not Set') }}</p>
+        <p><strong>End Date:</strong> {{ term_info.end_date | default('Not Set') }}</p>
+    </div>
+    <div class="content-section">
+        <h4><i class="fas fa-info-circle"></i> School Information</h4>
+        <div class="row">
+            <div class="col-md-3">
+                <h5>Mission</h5>
+                <p>{{ content_data.mission | safe | default('Our mission is to provide quality education.', true) }}</p>
+            </div>
+            <div class="col-md-3">
+                <h5>Vision</h5>
+                <p>{{ content_data.vision | safe | default('To be a leading institution in holistic education.', true) }}</p>
+            </div>
+            <div class="col-md-3">
+                <h5>About</h5>
+                <p>{{ content_data.about | safe | default('Welcome to Jonyo Junior Secondary School.', true) }}</p>
+            </div>
+            <div class="col-md-3">
+                <h5>Contact</h5>
+                <p>{{ content_data.contact | safe | default('Contact us at info@jonyojs.ac.ke', true) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#learner_name').on('input', function() {
+            const query = $(this).val().trim();
+            if (query.length > 2) {
+                $.ajax({
+                    url: '{{ url_for("search_students") }}',
+                    data: { q: query },
+                    success: function(data) {
+                        const suggestions = $('#autocomplete-suggestions');
+                        suggestions.empty().show();
+                        if (data.length === 0) {
+                            suggestions.append('<div class="autocomplete-suggestion">No students found</div>');
+                        } else {
+                            suggestions.append('<div class="autocomplete-suggestion" data-name="" data-adm-no="">Select a student...</div>');
+                            data.forEach(function(student) {
+                                suggestions.append(
+                                    `<div class="autocomplete-suggestion" data-name="${student.username}" data-adm-no="${student.admission_no}">${student.username} (${student.admission_no})</div>`
+                                );
+                            });
+                        }
+                        $('.autocomplete-suggestion').click(function() {
+                            const name = $(this).data('name');
+                            const admNo = $(this).data('adm-no');
+                            $('#learner_name').val(name);
+                            $('#admission_no').val(admNo);
+                            suggestions.hide();
+                        });
+                    },
+                    error: function() {
+                        $('#autocomplete-suggestions').empty().show().append('<div class="autocomplete-suggestion">Error fetching students</div>');
+                    }
+                });
+            } else {
+                $('#autocomplete-suggestions').hide();
+            }
+        });
+
+        $('#updateFeeForm').submit(function(e) {
+            const learnerName = $('#learner_name').val().trim();
+            const admissionNo = $('#admission_no').val().trim();
+            if (!learnerName || !admissionNo) {
+                e.preventDefault();
+                alert('Please select a valid student.');
+            }
+        });
+
+        $(document).click(function(e) {
+            if (!$(e.target).closest('#learner_name, #autocomplete-suggestions').length) {
+                $('#autocomplete-suggestions').hide();
+            }
+        });
+    });
+</script>
+{% endblock %}

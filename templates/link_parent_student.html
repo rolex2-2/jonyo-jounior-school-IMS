@@ -1,0 +1,128 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+  .form-container {
+    max-width: 600px;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .btn-primary {
+    background-color: #4682b4;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+  }
+  .btn-primary:hover {
+    background-color: #5a9bd4;
+  }
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  .form-control {
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 16px;
+  }
+  .invalid-feedback {
+    color: #dc3545;
+    font-size: 0.875rem;
+  }
+  .form-text {
+    font-size: 0.875rem;
+  }
+  .alert-dismissible .btn-close {
+    padding: 1.25rem;
+  }
+  .flash-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  @media (max-width: 576px) {
+    .form-container {
+      padding: 16px;
+      margin: 10px;
+    }
+    .btn-primary {
+      width: 100%;
+    }
+  }
+</style>
+<section class="form-container">
+  <h3 role="heading" aria-level="3"><i class="fas fa-link"></i> Link a Student</h3>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show flash-message" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% if form %}
+    <form method="POST" action="{{ url_for('link_student') }}">
+      {{ form.hidden_tag() }}
+      <div class="mb-3">
+        <label for="parent_id" class="form-label">{{ form.parent_id.label }}</label>
+        {{ form.parent_id(class="form-control" + (" is-invalid" if form.parent_id.errors else ""), id="parent_id", aria_describedby="parentUsernameHelp") }}
+        <small id="parentUsernameHelp" class="form-text text-muted">Enter your username.</small>
+        {% if form.parent_id.errors %}
+          <div class="invalid-feedback">
+            {% for error in form.parent_id.errors %}
+              {{ error }}<br>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="mb-3">
+        <label for="admission_no" class="form-label">{{ form.admission_no.label }}</label>
+        {{ form.admission_no(class="form-control" + (" is-invalid" if form.admission_no.errors else ""), id="admission_no", aria_describedby="admissionNoHelp") }}
+        <small id="admissionNoHelp" class="form-text text-muted">Enter the student’s admission number.</small>
+        {% if form.admission_no.errors %}
+          <div class="invalid-feedback">
+            {% for error in form.admission_no.errors %}
+              {{ error }}<br>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <button type="submit" class="btn btn-primary" id="submitBtn" aria-label="Link Student"><i class="fas fa-link"></i> Link Student</button>
+      <span id="loadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
+    </form>
+  {% else %}
+    <div class="alert alert-danger" role="alert">Error: Unable to load the link student form. Please try again later.</div>
+  {% endif %}
+  <a href="{{ url_for('parent_dashboard') }}" class="btn btn-primary mt-3" aria-label="Back to Dashboard"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+</section>
+<script>
+  document.querySelector('form')?.addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('loadingSpinner');
+    if (submitBtn && spinner) {
+      submitBtn.disabled = true;
+      spinner.style.display = 'inline';
+    }
+  });
+</script>
+{% endblock %}

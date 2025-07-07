@@ -1,0 +1,321 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+  .form-container {
+    max-width: 900px;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .dashboard-section {
+    margin-bottom: 1.5rem;
+  }
+  .btn-primary {
+    background-color: #4682b4;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+  }
+  .btn-primary:hover {
+    background-color: #5a9bd4;
+  }
+  .btn-primary i {
+    margin-right: 8px;
+  }
+  .announcements-section {
+    margin-top: 2rem;
+  }
+  .announcement {
+    border-bottom: 1px solid #e9ecef;
+    padding: 1rem 0;
+  }
+  .announcement:last-child {
+    border-bottom: none;
+  }
+  .announcement-content {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+  .announcement-date {
+    color: #6c757d;
+    font-size: 0.875rem;
+  }
+  .alert-info {
+    background-color: #e7f1ff;
+    color: #004085;
+    border-color: #cce5ff;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+  .alert-dismissible .btn-close {
+    padding: 1.25rem;
+  }
+  .flash-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  .form-control, .form-select {
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 16px;
+  }
+  .invalid-feedback {
+    color: #dc3545;
+    font-size: 0.875rem;
+  }
+  .form-text {
+    font-size: 0.875rem;
+  }
+  .table-responsive {
+    margin-top: 1rem;
+  }
+  @media (max-width: 576px) {
+    .form-container {
+      padding: 16px;
+      margin: 10px;
+    }
+    .btn-primary {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  }
+</style>
+<div class="form-container">
+  <h3 role="heading" aria-level="3"><i class="fas fa-tachometer-alt"></i> Parent Dashboard</h3>
+  <p>Welcome, {{ parent_id }}!</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show flash-message" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  <div class="dashboard-section">
+    <h4><i class="fas fa-users"></i> Linked Students</h4>
+    {% if linked_students %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Admission No</th>
+              <th scope="col">Grade</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in linked_students %}
+              <tr>
+                <td>{{ student.name }}</td>
+                <td>{{ student.admission_no }}</td>
+                <td>{{ student.grade }}</td>
+                <td>
+                  <a href="{{ url_for('parent_dashboard', admission_no=student.admission_no) }}" class="btn btn-primary btn-sm" aria-label="View Student {{ student.name }}"><i class="fas fa-eye"></i> View</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <a href="{{ url_for('link_student') }}" class="btn btn-primary mt-3" aria-label="Link Another Student"><i class="fas fa-link"></i> Link Another Student</a>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        No linked students found. <a href="{{ url_for('link_student') }}" class="alert-link">Link a student</a>.
+      </div>
+    {% endif %}
+  </div>
+  {% if student %}
+    <div class="dashboard-section">
+      <h4><i class="fas fa-user-graduate"></i> {{ student.name }}'s Dashboard (Admission No: {{ student.admission_no }})</h4>
+      {% if marks %}
+        <h5>Recent Marks</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Learning Area</th>
+                <th scope="col">Marks</th>
+                <th scope="col">Exam Type</th>
+                <th scope="col">Term</th>
+                <th scope="col">Year</th>
+                <th scope="col">Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for mark in marks %}
+                <tr>
+                  <td>{{ mark.learning_area }}</td>
+                  <td>{{ mark.total_marks }}</td>
+                  <td>{{ mark.exam_type }}</td>
+                  <td>{{ mark.term }}</td>
+                  <td>{{ mark.year }}</td>
+                  <td>{{ mark.grade }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info" role="alert">No recent marks available for this student.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+  <div class="dashboard-section">
+    <h4><i class="fas fa-file-download"></i> Download Report Card</h4>
+    {% if form %}
+      <form action="{{ url_for('student_download_report_card') }}" method="POST">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ form.admission_no.label(class="form-label") }}
+            {{ form.admission_no(class="form-select" + (" is-invalid" if form.admission_no.errors else ""), aria_describedby="admissionNoHelp") }}
+            <small id="admissionNoHelp" class="form-text text-muted">Select the student.</small>
+            {% for error in form.admission_no.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form.grade.label(class="form-label") }}
+            {{ form.grade(class="form-select" + (" is-invalid" if form.grade.errors else ""), aria_describedby="gradeHelp") }}
+            <small id="gradeHelp" class="form-text text-muted">Select the student’s grade.</small>
+            {% for error in form.grade.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form.term.label(class="form-label") }}
+            {{ form.term(class="form-select" + (" is-invalid" if form.term.errors else ""), aria_describedby="termHelp") }}
+            <small id="termHelp" class="form-text text-muted">Select the term.</small>
+            {% for error in form.term.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form.exam_type.label(class="form-label") }}
+            {{ form.exam_type(class="form-select" + (" is-invalid" if form.exam_type.errors else ""), aria_describedby="examTypeHelp") }}
+            <small id="examTypeHelp" class="form-text text-muted">Select the exam type.</small>
+            {% for error in form.exam_type.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form.year.label(class="form-label") }}
+            {{ form.year(class="form-control" + (" is-invalid" if form.year.errors else ""), placeholder="e.g., 2025", aria_describedby="yearHelp") }}
+            <small id="yearHelp" class="form-text text-muted">Enter the year (e.g., 2025).</small>
+            {% for error in form.year.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-12">
+            {{ form.submit(class="btn btn-primary", id="submitBtn", aria_label="Download Report Card") }}
+            <span id="loadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
+          </div>
+        </div>
+      </form>
+    {% else %}
+      <div class="alert alert-danger" role="alert">Error: Unable to load the report card form. Please try again later.</div>
+    {% endif %}
+  </div>
+  <div class="dashboard-section">
+    <h4><i class="fas fa-file-download"></i> Download Fee Statement</h4>
+    {% if fee_form %}
+      <form action="{{ url_for('student_download_fee_statement') }}" method="POST">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ fee_form.learner_name.label(class="form-label") }}
+            {{ fee_form.learner_name(class="form-control" + (" is-invalid" if fee_form.learner_name.errors else ""), placeholder="Enter student name", aria_describedby="learnerNameHelp") }}
+            <small id="learnerNameHelp" class="form-text text-muted">Enter the student’s name.</small>
+            {% for error in fee_form.learner_name.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+            {{ fee_form.admission_no }}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ fee_form.grade.label(class="form-label") }}
+            {{ fee_form.grade(class="form-select" + (" is-invalid" if fee_form.grade.errors else ""), aria_describedby="gradeFeeHelp") }}
+            <small id="gradeFeeHelp" class="form-text text-muted">Select the grade (7, 8, 9, or All).</small>
+            {% for error in fee_form.grade.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ fee_form.term.label(class="form-label") }}
+            {{ fee_form.term(class="form-select" + (" is-invalid" if fee_form.term.errors else ""), aria_describedby="termFeeHelp") }}
+            <small id="termFeeHelp" class="form-text text-muted">Select the term (Term 1, Term 2, or Term 3).</small>
+            {% for error in fee_form.term.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ fee_form.year.label(class="form-label") }}
+            {{ fee_form.year(class="form-control" + (" is-invalid" if fee_form.year.errors else ""), placeholder="e.g., 2025", aria_describedby="yearFeeHelp") }}
+            <small id="yearFeeHelp" class="form-text text-muted">Enter the year (e.g., 2025).</small>
+            {% for error in fee_form.year.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+          {{ fee_form.format }}
+          <div class="col-md-12">
+            {{ fee_form.submit(class="btn btn-primary", id="feeSubmitBtn", aria_label="Download Fee Statement") }}
+            <span id="feeLoadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
+          </div>
+        </div>
+      </form>
+    {% else %}
+      <div class="alert alert-danger" role="alert">Error: Unable to load the fee statement form. Please try again later.</div>
+    {% endif %}
+  </div>
+  <div class="announcements-section">
+    <h4><i class="fas fa-bullhorn"></i> Recent Announcements</h4>
+    {% if recent_announcements %}
+      {% for announcement in recent_announcements %}
+        <div class="announcement">
+          <div class="announcement-content">{{ announcement.content }}</div>
+          <div class="announcement-date">Posted on: {{ announcement.date }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info" role="alert">No recent announcements available.</div>
+    {% endif %}
+  </div>
+</div>
+<script>
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      const submitBtn = form.querySelector('#submitBtn, #feeSubmitBtn');
+      const spinner = form.querySelector('#loadingSpinner, #feeLoadingSpinner');
+      if (submitBtn && spinner) {
+        submitBtn.disabled = true;
+        spinner.style.display = 'inline';
+      }
+    });
+  });
+</script>
+{% endblock %}

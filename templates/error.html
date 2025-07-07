@@ -1,0 +1,32 @@
+
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 50px auto;
+        background-color: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        text-align: center;
+    }
+    .btn-primary {
+        background-color: #4682b4;
+        color: #fff;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        margin-top: 20px;
+    }
+    .btn-primary:hover {
+        background-color: #5a9bd4;
+    }
+</style>
+<div class="form-container">
+    <h3>Error</h3>
+    <p>{{ message }}</p>
+    <a href="{{ url_for('login') }}" class="btn btn-primary">Return to Login</a>
+</div>
+{% endblock %}

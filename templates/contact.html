@@ -1,0 +1,85 @@
+{% extends "index.html" %}
+{% block content %}
+<style>
+    .content-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    h2 {
+        color: #4682b4;
+        margin-bottom: 20px;
+    }
+    h2 i {
+        margin-right: 10px;
+    }
+    p {
+        line-height: 1.6;
+        margin-bottom: 15px;
+    }
+    .contact-info {
+        margin-bottom: 20px;
+    }
+    .contact-info p {
+        display: flex;
+        align-items: center;
+    }
+    .contact-info i {
+        color: #4682b4;
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
+    }
+    .term-info {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .term-info p {
+        font-style: italic;
+        color: #6c757d;
+    }
+    .alert {
+        margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+        .content-container {
+            padding: 15px;
+        }
+        h2 {
+            font-size: 1.5em;
+        }
+    }
+</style>
+<div class="content-container">
+    <h2><i class="fas fa-envelope"></i> Contact Us</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% if contact_content %}
+        <div class="contact-info">
+            {{ contact_content | safe }}
+        </div>
+    {% else %}
+        <div class="contact-info">
+            <p><i class="fas fa-phone"></i> Phone: +254 114 745 401</p>
+            <p><i class="fas fa-envelope"></i> Email: <a href="mailto:info@jonyojs.ac.ke">info@jonyojs.ac.ke</a></p>
+            <p><i class="fas fa-map-marker-alt"></i> Address: P.O. Box 123, Kisumu, Kenya</p>
+        </div>
+    {% endif %}
+    {% if term_info %}
+        <div class="term-info">
+            <p>Current Term: {{ term_info.term }} {{ term_info.year }}</p>
+            <p>Principal: {{ term_info.principal }}</p>
+            <p>Term Dates: {{ term_info.start_date }} to {{ term_info.end_date }}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

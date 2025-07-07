@@ -1,0 +1,138 @@
+{% extends "index.html" %}
+     {% block content %}
+     <style>
+       .form-container {
+         max-width: 600px;
+         margin: 20px auto;
+         background-color: #fff;
+         padding: 20px;
+         border-radius: 6px;
+         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+       }
+       .btn-primary {
+         background-color: #4682b4;
+         color: #fff;
+         padding: 10px 20px;
+         border: none;
+         border-radius: 6px;
+         font-size: 16px;
+         transition: background-color 0.3s ease;
+         margin-right: 10px;
+       }
+       .btn-primary:hover {
+         background-color: #5a9bd4;
+       }
+       .btn-primary i {
+         margin-right: 8px;
+       }
+       .alert-dismissible .btn-close {
+         padding: 1.25rem;
+       }
+       .flash-message {
+         padding: 10px;
+         margin: 10px 0;
+         border-radius: 6px;
+         font-size: 16px;
+       }
+       .alert-success {
+         background-color: #d4edda;
+         color: #155724;
+       }
+       .alert-danger {
+         background-color: #f8d7da;
+         color: #721c24;
+       }
+       .alert-warning {
+         background-color: #fff3cd;
+         color: #856404;
+       }
+       .form-label {
+         font-weight: 500;
+         margin-bottom: 0.5rem;
+       }
+       .form-control {
+         border-radius: 5px;
+         padding: 8px;
+         font-size: 16px;
+         pointer-events: auto !important; /* Ensure fields are editable */
+       }
+       .invalid-feedback {
+         color: #dc3545;
+         font-size: 0.875rem;
+       }
+       .form-text {
+         font-size: 0.875rem;
+       }
+       @media (max-width: 576px) {
+         .form-container {
+           padding: 16px;
+           margin: 10px;
+         }
+         .btn-primary {
+           width: 100%;
+           margin-bottom: 10px;
+         }
+       }
+     </style>
+     <div class="form-container">
+       <h3 role="heading" aria-level="3"><i class="fas fa-link"></i> Link Student to Your Account</h3>
+       <p>Enter your full name and the student’s admission number to link them to your account.</p>
+       {% with messages = get_flashed_messages(with_categories=true) %}
+         {% if messages %}
+           {% for category, message in messages %}
+             <div class="alert alert-{{ category }} alert-dismissible fade show flash-message" role="alert">
+               {{ message }}
+               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+             </div>
+           {% endfor %}
+         {% endif %}
+       {% endwith %}
+       <form action="{{ url_for('link_student') }}" method="POST">
+         {{ form.hidden_tag() }}
+         <div class="row">
+           <div class="col-md-6 mb-3">
+             {{ form.parent_id.label(class="form-label") }}
+             {{ form.parent_id(class="form-control" + (" is-invalid" if form.parent_id.errors else ""), placeholder="Enter your full name", aria_describedby="parentNameHelp") }}
+             <small id="parentNameHelp" class="form-text text-muted">Enter your full name as registered.</small>
+             {% for error in form.parent_id.errors %}
+               <div class="invalid-feedback">{{ error }}</div>
+             {% endfor %}
+           </div>
+           <div class="col-md-6 mb-3">
+             {{ form.admission_no.label(class="form-label") }}
+             {{ form.admission_no(class="form-control" + (" is-invalid" if form.admission_no.errors else ""), placeholder="e.g., ADM123", aria_describedby="admissionNoHelp") }}
+             <small id="admissionNoHelp" class="form-text text-muted">Enter the student’s admission number.</small>
+             {% for error in form.admission_no.errors %}
+               <div class="invalid-feedback">{{ error }}</div>
+             {% endfor %}
+           </div>
+           <div class="col-md-12">
+             {{ form.submit(class="btn btn-primary", id="submitBtn", aria_label="Link Student") }}
+             <span id="loadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
+           </div>
+         </div>
+       </form>
+       <div class="mt-3">
+         <a href="{{ url_for('parent_dashboard') }}" class="btn btn-primary" aria-label="Back to Dashboard"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+       </div>
+     </div>
+     <script>
+       document.addEventListener('DOMContentLoaded', function() {
+         const form = document.querySelector('form');
+         form.addEventListener('submit', function() {
+           const submitBtn = document.querySelector('#submitBtn');
+           const spinner = document.querySelector('#loadingSpinner');
+           if (submitBtn && spinner) {
+             submitBtn.disabled = true;
+             spinner.style.display = 'inline';
+           }
+         });
+         // Ensure inputs are not disabled
+         const inputs = document.querySelectorAll('input.form-control');
+         inputs.forEach(input => {
+           input.removeAttribute('disabled');
+           input.removeAttribute('readonly');
+         });
+       });
+     </script>
+     {% endblock %}
