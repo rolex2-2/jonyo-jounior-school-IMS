@@ -1,3 +1,10 @@
-runtime: python
-build:
-  pythonVersion: 3.11.9
+services:
+  - type: web
+    name: jonyo-jounior-school-IMS
+    env: python
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    build:
+      pythonVersion: 3.11.6
