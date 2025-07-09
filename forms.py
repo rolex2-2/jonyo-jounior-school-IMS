@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from database import get_db, User, ParentStudent, LearningAreas
 from database import db
 from flask_login import current_user
+from database import User, Student
 
 
 
@@ -20,7 +21,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 logger = logging.getLogger(__name__)
 
 
-GRADES = [('all', 'All'), ('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
+GRADES = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
 TERMS = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
 
 EXAM_TYPES = [
@@ -42,16 +43,49 @@ class LoginForm(FlaskForm):
     role = SelectField('Role', choices=[('admin', 'Admin'), ('teacher', 'Teacher'), ('student', 'Student'), ('parent', 'Parent'), ('bursar', 'Bursar')], validators=[DataRequired()])
 
 class ResultsFilterForm(FlaskForm):
-    term = SelectField('Term', choices=[('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')], validators=[DataRequired()])
-    year = IntegerField('Year', validators=[DataRequired(), NumberRange(min=2000, max=2100)])
-    exam_type = SelectField('Exam Type', choices=[
-        ('cat1', 'CAT 1'), ('cat2', 'CAT 2'), ('cat3', 'CAT 3'),
-        ('rat1', 'RAT 1'), ('rat2', 'RAT 2'), ('rat3', 'RAT 3'),
-        ('midterm', 'Mid Term'), ('endterm', 'End Term'),
-        ('project1', 'Project 1'), ('project2', 'Project 2'), ('project3', 'Project 3')
-    ], validators=[DataRequired()])
+    admission_no = SelectField(
+        'Admission Number',
+        choices=[],
+        validators=[DataRequired(message='Please select an admission number.')],
+        description='Select the student’s admission number.'
+    )
+    grade = SelectField(
+        'Grade',
+        choices=[('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')],
+        validators=[DataRequired(message='Please select a grade.')]
+    )
+    term = SelectField(
+        'Term',
+        choices=[('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')],
+        validators=[DataRequired(message='Please select a term.')]
+    )
+    year = IntegerField(
+        'Year',
+        validators=[
+            DataRequired(message='Please enter a year.'),
+            NumberRange(min=2000, max=2100, message='Year must be between 2000 and 2100.')
+        ]
+    )
+    exam_type = SelectField(
+        'Exam Type',
+        choices=[
+            ('cat1', 'CAT 1'), ('cat2', 'CAT 2'), ('cat3', 'CAT 3'),
+            ('rat1', 'RAT 1'), ('rat2', 'RAT 2'), ('rat3', 'RAT 3'),
+            ('midterm', 'Mid Term'), ('endterm', 'End Term'),
+            ('project1', 'Project 1'), ('project2', 'Project 2'), ('project3', 'Project 3')
+        ],
+        validators=[DataRequired(message='Please select an exam type.')]
+    )
     submit = SubmitField('View Results')
 
+    def __init__(self, admission_no=None, grade=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if admission_no:
+            self.admission_no.data = admission_no
+        if grade:
+            self.grade.data = grade
+        logger.debug(f"ResultsFilterForm initialized with admission_no={admission_no}, grade={grade}")
+        
 class TeacherRegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     grade = SelectField('Grade', choices=[('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')], validators=[DataRequired()])
@@ -178,19 +212,37 @@ class AnnouncementsForm(FlaskForm):
     content = TextAreaField('Announcements Content', validators=[DataRequired()])
     submit = SubmitField('Add Announcements')
 
+
 class LinkParentStudentForm(FlaskForm):
-    parent_id = SelectField(
+    parent_id = StringField(
         'Parent Username',
-        validators=[DataRequired(message='Please select a parent.')],
-        choices=[]  # Populated dynamically with user IDs and usernames
+        validators=[DataRequired(message='Please enter a parent username.'), Length(min=1, max=80)],
+        description='Enter the parent\'s username.'
     )
-    admission_no = SelectField(
+    admission_no = StringField(
         'Student Admission Number',
-        validators=[DataRequired(message='Please select a student.')],
-        choices=[]  # Populated dynamically with admission numbers and names
+        validators=[DataRequired(message='Please enter a student admission number.'), Length(min=1, max=50)],
+        description='Enter the student\'s admission number.'
     )
     submit = SubmitField('Link Student')
-    
+
+    def validate_parent_id(self, parent_id):
+        db_session = next(get_db())
+        try:
+            parent = db_session.query(User).filter_by(username=parent_id.data, role='parent').first()
+            if not parent:
+                raise ValidationError('Parent username not found.')
+        finally:
+            db_session.close()
+
+    def validate_admission_no(self, admission_no):
+        db_session = next(get_db())
+        try:
+            student = db_session.query(Student).filter_by(admission_no=admission_no.data).first()
+            if not student:
+                raise ValidationError('Student admission number not found.')
+        finally:
+            db_session.close()
 class ParentRegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=50)])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
@@ -449,17 +501,17 @@ class FeeStatementForm(FlaskForm):
     admission_no = SelectField(
         'Student',
         validators=[DataRequired(message='Please select a student.')],
-        choices=[]  # Populated dynamically in the route
+        choices=[]  # Populated dynamically in routes
     )
     grade = SelectField(
         'Grade',
         validators=[DataRequired(message='Please select a grade.')],
-        choices=[('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9'), ('all', 'All')]
+        choices=GRADES
     )
     term = SelectField(
         'Term',
         validators=[DataRequired(message='Please select a term.')],
-        choices=[('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
+        choices=TERMS
     )
     year = StringField(
         'Year',
@@ -467,5 +519,13 @@ class FeeStatementForm(FlaskForm):
             DataRequired(message='Please enter a year.'),
             Regexp(r'^\d{4}$', message='Year must be a 4-digit number (e.g., 2025).')
         ],
-        default='2025'
+        default=str(datetime.now().year)
     )
+    submit = SubmitField('Download')
+
+    def __init__(self, admission_no=None, grade=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if admission_no:
+            self.admission_no.data = admission_no
+        if grade:
+            self.grade.data = grade

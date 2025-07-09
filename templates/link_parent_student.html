@@ -17,25 +17,13 @@
     border-radius: 6px;
     font-size: 16px;
     transition: background-color 0.3s ease;
+    margin-right: 10px;
   }
   .btn-primary:hover {
     background-color: #5a9bd4;
   }
-  .form-label {
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-  }
-  .form-control {
-    border-radius: 5px;
-    padding: 8px;
-    font-size: 16px;
-  }
-  .invalid-feedback {
-    color: #dc3545;
-    font-size: 0.875rem;
-  }
-  .form-text {
-    font-size: 0.875rem;
+  .btn-primary i {
+    margin-right: 8px;
   }
   .alert-dismissible .btn-close {
     padding: 1.25rem;
@@ -58,6 +46,23 @@
     background-color: #fff3cd;
     color: #856404;
   }
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  .form-control {
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 16px;
+    pointer-events: auto !important;
+  }
+  .invalid-feedback {
+    color: #dc3545;
+    font-size: 0.875rem;
+  }
+  .form-text {
+    font-size: 0.875rem;
+  }
   @media (max-width: 576px) {
     .form-container {
       padding: 16px;
@@ -65,11 +70,13 @@
     }
     .btn-primary {
       width: 100%;
+      margin-bottom: 10px;
     }
   }
 </style>
-<section class="form-container">
-  <h3 role="heading" aria-level="3"><i class="fas fa-link"></i> Link a Student</h3>
+<div class="form-container">
+  <h3 role="heading" aria-level="3"><i class="fas fa-link"></i> Link Parent to Student</h3>
+  <p>Type the parent username and student admission number to create a link.</p>
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
@@ -80,49 +87,46 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
-  {% if form %}
-    <form method="POST" action="{{ url_for('link_student') }}">
-      {{ form.hidden_tag() }}
-      <div class="mb-3">
-        <label for="parent_id" class="form-label">{{ form.parent_id.label }}</label>
-        {{ form.parent_id(class="form-control" + (" is-invalid" if form.parent_id.errors else ""), id="parent_id", aria_describedby="parentUsernameHelp") }}
-        <small id="parentUsernameHelp" class="form-text text-muted">Enter your username.</small>
-        {% if form.parent_id.errors %}
-          <div class="invalid-feedback">
-            {% for error in form.parent_id.errors %}
-              {{ error }}<br>
-            {% endfor %}
-          </div>
-        {% endif %}
+  <form action="{{ url_for('link_parent_student') }}" method="POST">
+    {{ form.hidden_tag() }}
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        {{ form.parent_id.label(class="form-label") }}
+        {{ form.parent_id(class="form-control" + (" is-invalid" if form.parent_id.errors else ""), id="parent_id", aria_describedby="parentIdHelp") }}
+        <small id="parentIdHelp" class="form-text text-muted">Type the parent username.</small>
+        {% for error in form.parent_id.errors %}
+          <div class="invalid-feedback">{{ error }}</div>
+        {% endfor %}
       </div>
-      <div class="mb-3">
-        <label for="admission_no" class="form-label">{{ form.admission_no.label }}</label>
+      <div class="col-md-6 mb-3">
+        {{ form.admission_no.label(class="form-label") }}
         {{ form.admission_no(class="form-control" + (" is-invalid" if form.admission_no.errors else ""), id="admission_no", aria_describedby="admissionNoHelp") }}
-        <small id="admissionNoHelp" class="form-text text-muted">Enter the student’s admission number.</small>
-        {% if form.admission_no.errors %}
-          <div class="invalid-feedback">
-            {% for error in form.admission_no.errors %}
-              {{ error }}<br>
-            {% endfor %}
-          </div>
-        {% endif %}
+        <small id="admissionNoHelp" class="form-text text-muted">Type the student admission number.</small>
+        {% for error in form.admission_no.errors %}
+          <div class="invalid-feedback">{{ error }}</div>
+        {% endfor %}
       </div>
-      <button type="submit" class="btn btn-primary" id="submitBtn" aria-label="Link Student"><i class="fas fa-link"></i> Link Student</button>
-      <span id="loadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
-    </form>
-  {% else %}
-    <div class="alert alert-danger" role="alert">Error: Unable to load the link student form. Please try again later.</div>
-  {% endif %}
-  <a href="{{ url_for('parent_dashboard') }}" class="btn btn-primary mt-3" aria-label="Back to Dashboard"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
-</section>
+      <div class="col-md-12">
+        {{ form.submit(class="btn btn-primary", id="submitBtn", aria_label="Link Parent to Student") }}
+        <span id="loadingSpinner" style="display: none; margin-left: 10px;">Loading...</span>
+      </div>
+    </div>
+  </form>
+  <div class="mt-3">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary" aria-label="Back to Dashboard"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+  </div>
+</div>
 <script>
-  document.querySelector('form')?.addEventListener('submit', function(e) {
-    const submitBtn = document.getElementById('submitBtn');
-    const spinner = document.getElementById('loadingSpinner');
-    if (submitBtn && spinner) {
-      submitBtn.disabled = true;
-      spinner.style.display = 'inline';
-    }
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function() {
+      const submitBtn = document.querySelector('#submitBtn');
+      const spinner = document.querySelector('#loadingSpinner');
+      if (submitBtn && spinner) {
+        submitBtn.disabled = true;
+        spinner.style.display = 'inline';
+      }
+    });
   });
 </script>
 {% endblock %}

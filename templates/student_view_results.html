@@ -1,225 +1,316 @@
-{% extends "index.html" %}
+{% extends 'index.html' %}
 {% block content %}
 <style>
+  .form-container {
+    max-width: 900px;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .dashboard-section {
+    margin-bottom: 1.5rem;
+  }
+  .btn-primary {
+    background-color: #4682b4;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-primary:hover {
+    background-color: #5a9bd4;
+  }
+  .btn-primary i {
+    margin-right: 8px;
+  }
+  .btn-secondary {
+    background-color: #6c757d;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-secondary:hover {
+    background-color: #5a6268;
+  }
+  .alert-info {
+    background-color: #e7f1ff;
+    color: #004085;
+    border-color: #cce5ff;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+  .alert-dismissible .btn-close {
+    padding: 1.25rem;
+  }
+  .flash-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  .form-control, .form-select {
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 16px;
+    display: block !important;
+    visibility: visible !important;
+  }
+  .invalid-feedback {
+    color: #dc3545;
+    font-size: 0.875rem;
+  }
+  .form-text {
+    font-size: 0.875rem;
+  }
+  .table-responsive {
+    margin-top: 1rem;
+  }
+  .form-errors {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+  }
+  @media (max-width: 576px) {
     .form-container {
-        max-width: 1200px;
-        margin: 20px auto;
-        background-color: white;
-        padding: 25px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      padding: 16px;
+      margin: 10px;
     }
-    .form-group {
-        margin-bottom: 20px;
+    .btn-primary, .btn-secondary {
+      width: 100%;
+      margin-bottom: 10px;
     }
-    label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        display: block;
-    }
-    .form-control, .form-select {
-        padding: 10px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 1em;
-        width: 100%;
-    }
-    .form-group i {
-        color: #4682b4;
-        margin-right: 10px;
-    }
-    .btn-primary {
-        background-color: #4682b4;
-        color: white;
-        padding: 12px;
-        border: none;
-        border-radius: 4px;
-        font-size: 1.1em;
-        transition: background-color 0.3s;
-        margin-right: 10px;
-    }
-    .btn-primary:hover {
-        background-color: #5a9bd4;
-    }
-    .error {
-        color: #dc3545;
-        font-size: 0.9em;
-        margin-top: 5px;
-        display: block;
-    }
-    .alert {
-        margin-bottom: 20px;
-    }
-    .table-responsive {
-        margin-top: 20px;
-    }
-    .table th, .table td {
-        text-align: center;
-        vertical-align: middle;
-        white-space: nowrap;
-    }
-    .term-info {
-        margin-top: 20px;
-        padding: 15px;
-        background-color: #f8f9fa;
-        border-radius: 4px;
-    }
-    @media (max-width: 768px) {
-        .form-container {
-            padding: 15px;
-        }
-        .btn-primary {
-            font-size: 1em;
-            padding: 10px;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-        .table-responsive {
-            font-size: 0.85em;
-        }
-        .table th, .table td {
-            padding: 8px;
-        }
-    }
+  }
 </style>
 
 <div class="form-container">
-    <h3><i class="fas fa-table"></i> View Results for {{ student_grade }} - {{ term_info.term }} {{ term_info.year }}</h3>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' if category == 'success' else 'warning' }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+  <h3 role="heading" aria-level="3"><i class="fas fa-eye"></i> View Results</h3>
 
-    <form method="POST" class="needs-validation" novalidate>
-        {{ form.hidden_tag() }}
-        <div class="row mb-3">
-            <div class="col-md-3 form-group">
-                <label for="{{ form.grade.id }}"><i class="fas fa-school"></i> {{ form.grade.label.text }}</label>
-                {{ form.grade(class="form-select", required=True, readonly=True) }}
-                {% if form.grade.errors %}
-                    <span class="error">{{ form.grade.errors[0] }}</span>
-                {% endif %}
-            </div>
-            <div class="col-md-3 form-group">
-                <label for="{{ form.exam_type.id }}"><i class="fas fa-file-alt"></i> {{ form.exam_type.label.text }}</label>
-                {{ form.exam_type(class="form-select", required=True) }}
-                {% if form.exam_type.errors %}
-                    <span class="error">{{ form.exam_type.errors[0] }}</span>
-                {% endif %}
-            </div>
-            <div class="col-md-3 form-group">
-                <label for="{{ form.term.id }}"><i class="fas fa-calendar-alt"></i> {{ form.term.label.text }}</label>
-                {{ form.term(class="form-select", required=True) }}
-                {% if form.term.errors %}
-                    <span class="error">{{ form.term.errors[0] }}</span>
-                {% endif %}
-            </div>
-            <div class="col-md-3 form-group">
-                <label for="{{ form.year.id }}"><i class="fas fa-calendar-year"></i> {{ form.year.label.text }}</label>
-                {{ form.year(class="form-control", required=True) }}
-                {% if form.year.errors %}
-                    <span class="error">{{ form.year.errors[0] }}</span>
-                {% endif %}
-            </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show flash-message" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter Results</button>
-        <a href="{{ url_for('student_download_report_card') }}" class="btn btn-primary"><i class="fas fa-file-download"></i> Download Report Card</a>
-        <a href="{{ url_for('student_download_fee_statement') }}" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Download Fee Statement</a>
-    </form>
-
-    {% if marks %}
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>Learning Area</th>
-                        <th>Marks</th>
-                        <th>Exam Type</th>
-                        <th>Term</th>
-                        <th>Year</th>
-                        <th>Grade</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for mark in marks %}
-                        <tr>
-                            <td>{{ mark.learning_area }}</td>
-                            <td>{{ mark.total_marks if mark.total_marks is not none else '-' }}</td>
-                            <td>{{ mark.exam_type }}</td>
-                            <td>{{ mark.term }}</td>
-                            <td>{{ mark.year }}</td>
-                            <td>{{ mark.grade }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% elif form.validate_on_submit() %}
-        <p class="mt-3 text-muted">No results found for the selected criteria.</p>
+      {% endfor %}
     {% endif %}
+  {% endwith %}
 
-    {% if fee %}
-        <div class="table-responsive">
-            <h4SnackBar
-            <h4>Fee Information</h4>
-            <table class="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>Total Fee</th>
-                        <th>Amount Paid</th>
-                        <th>Balance</th>
-                        <th>Grade</th>
-                        <th>Term</th>
-                        <th>Year</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{{ fee.total_fee }}</td>
-                        <td>{{ fee.amount_paid }}</td>
-                        <td>{{ fee.balance }}</td>
-                        <td>{{ fee.grade }}</td>
-                        <td>{{ fee.term }}</td>
-                        <td>{{ fee.year }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-
-    <div class="term-info">
-        <h4>Term Information</h4>
-        <p><strong>Term:</strong> {{ term_info.term }}</p>
-        <p><strong>Year:</strong> {{ term_info.year }}</p>
-        <p><strong>Principal:</strong> {{ term_info.principal }}</p>
-        <p><strong>Start Date:</strong> {{ term_info.start_date }}</p>
-        <p><strong>End Date:</strong> {{ term_info.end_date }}</p>
+  <!-- Student Information -->
+  {% if student %}
+    <div class="dashboard-section">
+      <h4><i class="fas fa-user"></i> Student Details</h4>
+      <p><strong>Name:</strong> {{ student.name }}</p>
+      <p><strong>Admission Number:</strong> {{ student.admission_no }}</p>
+      <p><strong>Current Grade:</strong> {{ student.grade }}</p>
     </div>
+  {% else %}
+    <div class="dashboard-section">
+      <div class="alert alert-info" role="alert">Student information not available.</div>
+    </div>
+  {% endif %}
 
-    <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary mt-3"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+  <!-- Results Filter Form -->
+  <div class="dashboard-section">
+    <form action="{{ url_for('student_view_results', admission_no=student.admission_no) }}" method="POST" id="resultsFilterForm">
+      {{ form.hidden_tag() }}
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.admission_no.label(class="form-label") }}
+          {{ form.admission_no(class="form-control" + (" is-invalid" if form.admission_no.errors else ""), readonly=True, aria_describedby="admissionNoHelp", data_debug="view_admission_no") }}
+          <small id="admissionNoHelp" class="form-text text-muted">Your admission number is pre-selected.</small>
+          {% for error in form.admission_no.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6 mb-3">
+          {{ form.grade.label(class="form-label") }}
+          {{ form.grade(class="form-select" + (" is-invalid" if form.grade.errors else ""), aria_describedby="gradeHelp", data_debug="view_grade") }}
+          <small id="gradeHelp" class="form-text text-muted">{% if parent_view %}Select the grade for viewing results (Grade 7, Grade 8, or Grade 9).{% else %}Select your grade for viewing results.{% endif %}</small>
+          {% for error in form.grade.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+          {% endfor %}
+          {% if not form.grade.choices %}
+            <div class="alert alert-warning">No grades available for viewing results. Please contact support.</div>
+          {% endif %}
+        </div>
+        <div class="col-md-6 mb-3">
+          {{ form.term.label(class="form-label") }}
+          {{ form.term(class="form-select" + (" is-invalid" if form.term.errors else ""), aria_describedby="termHelp", data_debug="view_term") }}
+          <small id="termHelp" class="form-text text-muted">Select the term for viewing results.</small>
+          {% for error in form.term.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6 mb-3">
+          {{ form.exam_type.label(class="form-label") }}
+          {{ form.exam_type(class="form-select" + (" is-invalid" if form.exam_type.errors else ""), aria_describedby="examTypeHelp", data_debug="view_exam_type") }}
+          <small id="examTypeHelp" class="form-text text-muted">Select the exam type (e.g., End Term).</small>
+          {% for error in form.exam_type.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+          {% endfor %}
+          {% if not form.exam_type.choices %}
+            <div class="alert alert-warning">No exam types available for viewing results. Please contact support.</div>
+          {% endif %}
+        </div>
+        <div class="col-md-6 mb-3">
+          {{ form.year.label(class="form-label") }}
+          {{ form.year(class="form-control" + (" is-invalid" if form.year.errors else ""), placeholder="e.g., 2025", type="number", aria_describedby="yearHelp", data_debug="view_year") }}
+          <small id="yearHelp" class="form-text text-muted">Enter the year (e.g., 2025).</small>
+          {% for error in form.year.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-12">
+          {{ form.submit(class="btn btn-primary", id="submitViewResults", aria_label="View Results") }}
+          <a href="{{ url_for('parent_dashboard' if parent_view else 'student_dashboard', admission_no=student.admission_no if parent_view else None) }}" class="btn btn-secondary" aria-label="Back to Dashboard">
+            <i class="fas fa-arrow-left"></i> Back
+          </a>
+          <span id="loadingSpinnerViewResults" style="display: none; margin-left: 10px;">Loading...</span>
+          {% if form.errors %}
+            <div class="form-errors">
+              <ul>
+                {% for field, errors in form.errors.items() %}
+                  {% for error in errors %}
+                    <li>{{ error }}</li>
+                  {% endfor %}
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Results Table -->
+  <div class="dashboard-section">
+    <h4><i class="fas fa-chart-line"></i> Results</h4>
+    {% if marks %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Learning Area</th>
+              <th scope="col">Marks</th>
+              <th scope="col">Exam Type</th>
+              <th scope="col">Term</th>
+              <th scope="col">Year</th>
+              <th scope="col">Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mark in marks %}
+              <tr>
+                <td>{{ mark.learning_area }}</td>
+                <td>{{ mark.total_marks }}</td>
+                <td>{{ mark.exam_type }}</td>
+                <td>{{ mark.term }}</td>
+                <td>{{ mark.year }}</td>
+                <td>{{ mark.grade }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">No results available. Please select a grade, term, year, and exam type to view results.</div>
+    {% endif %}
+  </div>
+
+  <!-- Fee Information -->
+  <div class="dashboard-section">
+    <h4><i class="fas fa-money-bill"></i> Fee Information</h4>
+    {% if fee %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Total Fee</th>
+              <th scope="col">Amount Paid</th>
+              <th scope="col">Balance</th>
+              <th scope="col">Grade</th>
+              <th scope="col">Term</th>
+              <th scope="col">Year</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{ fee.total_fee }}</td>
+              <td>{{ fee.amount_paid }}</td>
+              <td>{{ fee.balance }}</td>
+              <td>{{ fee.grade }}</td>
+              <td>{{ fee.term }}</td>
+              <td>{{ fee.year }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">No fee information available for the selected criteria.</div>
+    {% endif %}
+  </div>
+
+  <!-- School Information -->
+  <div class="dashboard-section">
+    <h4><i class="fas fa-school"></i> School Information</h4>
+    <p><strong>Term:</strong> {{ term_info.term }}</p>
+    <p><strong>Year:</strong> {{ term_info.year }}</p>
+    <p><strong>Principal:</strong> {{ term_info.principal }}</p>
+    <p><strong>Mission:</strong> {{ content_data.mission }}</p>
+    <p><strong>Vision:</strong> {{ content_data.vision }}</p>
+    <p><strong>About:</strong> {{ content_data.about }}</p>
+  </div>
 </div>
 
 <script>
-    (function () {
-        'use strict';
-        var forms = document.querySelectorAll('.needs-validation');
-        Array.prototype.slice.call(forms).forEach(function (form) {
-            form.addEventListener('submit', function (event) {
-                if (!form.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                form.classList.add('was-validated');
-            }, false);
-        });
-    })();
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#resultsFilterForm');
+    if (form) {
+      console.log('Results Filter Form Elements:');
+      document.querySelectorAll('#resultsFilterForm select, #resultsFilterForm input').forEach(elem => {
+        const options = elem.tagName === 'SELECT' ? Array.from(elem.options).map(opt => opt.value).join(', ') : '';
+        console.log(`${elem.name}: value=${elem.value}, Options: [${options}]`);
+      });
+      form.addEventListener('submit', function(e) {
+        const submitBtn = form.querySelector('#submitViewResults');
+        const spinner = form.querySelector('#loadingSpinnerViewResults');
+        if (submitBtn && spinner) {
+          submitBtn.disabled = true;
+          spinner.style.display = 'inline';
+        }
+      });
+    }
+  });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 {% endblock %}

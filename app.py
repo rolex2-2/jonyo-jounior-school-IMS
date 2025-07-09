@@ -69,7 +69,7 @@ from utils import generate_individual_report_card  # Adjust import based on your
 from flask import Flask, render_template, flash, redirect, url_for, session, g
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from database import get_db, User, Student, TermInfo, Mission, Vision, About, Contact, ParentStudent, Announcements, Marks
-from forms import RegistrationForm, LoginForm, ReportCardForm, FeeForm, LinkParentStudentForm, StudentRegistrationForm
+from forms import RegistrationForm, LoginForm, FeeStatementForm, ReportCardForm, FeeForm, LinkParentStudentForm, StudentRegistrationForm
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime
@@ -101,6 +101,9 @@ from io import BytesIO
 from zipfile import ZipFile
 import pdfkit
 from datetime import datetime
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
 
 
 
@@ -130,7 +133,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-GRADES = [('all', 'All Grades')] + [(str(i), f'Grade {i}') for i in range(7, 10)]
+GRADES = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
 TERMS = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
 EXAM_TYPES = [
     ('cat1', 'CAT 1'), ('cat2', 'CAT 2'), ('cat3', 'CAT 3'),
@@ -138,6 +141,7 @@ EXAM_TYPES = [
     ('midterm', 'Mid Term'), ('endterm', 'End Term'),
     ('project1', 'Project 1'), ('project2', 'Project 2'), ('project3', 'Project 3')
 ]
+
 
 @app.template_filter('datetimeformat')
 def datetimeformat(value):
@@ -248,17 +252,38 @@ def admin_or_bursar_required(f):
 
 # Utility functions
 def get_grades():
-    """Fetch distinct grades from students and users tables."""
+    """Fetch distinct grades from Student and User tables (students only)."""
     try:
         with app.app_context():
             db_session = next(get_db())
-            students_grades = db_session.query(Student.grade).distinct().all()
-            users_grades = db_session.query(User.grade).filter(User.role == 'student', User.grade != None).distinct().all()
-            grades = set(g[0] for g in students_grades + users_grades if g[0])
-            return [(grade, grade) for grade in sorted(grades)] or [('Grade 7', 'Grade 7')]
+
+            # Query grades from Student table
+            student_grades = db_session.query(Student.grade).filter(Student.grade.isnot(None)).distinct().all()
+
+            # Query grades from User table where role is student
+            user_grades = db_session.query(User.grade).filter(
+                User.role == 'student',
+                User.grade.isnot(None)
+            ).distinct().all()
+
+            # Combine and deduplicate
+            grades = set()
+            for g in student_grades + user_grades:
+                if g[0]:
+                    grades.add(g[0])
+
+            if not grades:
+                logger.warning("No grades found in DB, using default fallback.")
+                return [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
+
+            # Return sorted choices
+            sorted_grades = sorted(grades, key=lambda x: (len(x), x))
+            logger.debug(f"Fetched grades from DB: {sorted_grades}")
+            return [(grade, grade) for grade in sorted_grades]
+
     except Exception as e:
         logger.error(f"Error fetching grades: {str(e)}\n{traceback.format_exc()}")
-        return [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
+        return [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]  # Fallback default
 
 def get_term_info():
     """Fetches the latest term information from the term_info table."""
@@ -321,7 +346,35 @@ def fetch_common_data():
     finally:
         db_session.close()
 
+def generate_fee_statement_pdf(fees, grade, term, year):
+    """Generate PDF file for fee statements."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
 
+    title = Paragraph(f"Fee Statement - {grade} {term} {year}", styles['Heading1'])
+    elements.append(title)
+
+    data = [['Admission No', 'Student Name', 'Total Fee', 'Amount Paid', 'Balance', 'Grade', 'Term', 'Year']]
+    for fee in fees:
+        data.append(list(fee))
+
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(table)
+
+    doc.build(elements)
+    return buffer
 
 
 def migrate_db():
@@ -608,7 +661,26 @@ def logout():
     return redirect(url_for('index'))
 
 # Dashboard Routes
-@app.route('/dashboard', methods=['GET'])
+from flask import render_template, request, flash, redirect, url_for
+from flask_login import login_required, current_user
+from datetime import datetime
+import logging
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
+
+# Assuming these are defined in your app.py or imported
+GRADES = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
+TERMS = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
+EXAM_TYPES = [
+    ('cat1', 'CAT 1'), ('cat2', 'CAT 2'), ('cat3', 'CAT 3'),
+    ('rat1', 'RAT 1'), ('rat2', 'RAT 2'), ('rat3', 'RAT 3'),
+    ('midterm', 'Mid Term'), ('endterm', 'End Term'),
+    ('project1', 'Project 1'), ('project2', 'Project 2'), ('project3', 'Project 3')
+]
+
+@app.route('/dashboard', methods=['GET', 'POST'])  # Updated to handle POST for form submissions
 @login_required
 def dashboard():
     """Render role-specific dashboards."""
@@ -647,25 +719,142 @@ def dashboard():
                 'grade': student.grade
             }
 
+            # Fetch grades for form choices
+            grades = db_session.query(Marks.grade).filter_by(admission_no=student.admission_no).distinct().order_by(Marks.grade).all()
+            grades = [(g[0], g[0]) for g in grades if g[0] in [grade[0] for grade in GRADES]] or GRADES
+
+            # Initialize forms
+            report_form = ReportCardForm(admission_no=student.admission_no, grade=student.grade)
+            report_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+            report_form.admission_no.data = student.admission_no
+            report_form.grade.choices = grades
+            report_form.grade.data = student.grade if student.grade in [g[0] for g in grades] else grades[0][0]
+            report_form.term.choices = TERMS
+            report_form.term.data = term_info['term'] if term_info['term'] in [t[0] for t in TERMS] else TERMS[0][0]
+            report_form.exam_type.choices = EXAM_TYPES
+            report_form.exam_type.data = 'endterm' if 'endterm' in [e[0] for e in EXAM_TYPES] else EXAM_TYPES[0][0]
+            report_form.year.data = int(term_info['year']) if term_info['year'].isdigit() else datetime.now().year
+
+            fee_form = FeeStatementForm(admission_no=student.admission_no, grade=student.grade)
+            fee_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+            fee_form.admission_no.data = student.admission_no
+            fee_form.grade.choices = grades
+            fee_form.grade.data = student.grade if student.grade in [g[0] for g in grades] else grades[0][0]
+            fee_form.term.choices = TERMS
+            fee_form.term.data = term_info['term'] if term_info['term'] in [t[0] for t in TERMS] else TERMS[0][0]
+            fee_form.year.data = term_info['year'] if term_info['year'].isdigit() else str(datetime.now().year)
+
+            view_results_form = ResultsFilterForm(admission_no=student.admission_no, grade=student.grade)
+            view_results_form.grade.choices = grades
+            view_results_form.grade.data = student.grade if student.grade in [g[0] for g in grades] else grades[0][0]
+            view_results_form.term.choices = TERMS
+            view_results_form.term.data = term_info['term'] if term_info['term'] in [t[0] for t in TERMS] else TERMS[0][0]
+            view_results_form.exam_type.choices = EXAM_TYPES
+            view_results_form.exam_type.data = 'endterm' if 'endterm' in [e[0] for e in EXAM_TYPES] else EXAM_TYPES[0][0]
+            view_results_form.year.data = int(term_info['year']) if term_info['year'].isdigit() else datetime.now().year
+
+            # Handle form submissions
+            if request.method == 'POST':
+                logger.debug(f"POST data: {request.form}")
+                if report_form.submit.data and report_form.validate_on_submit():
+                    logger.info(f"Redirecting to download_report_card: admission_no={report_form.admission_no.data}, grade={report_form.grade.data}, term={report_form.term.data}, year={report_form.year.data}, exam_type={report_form.exam_type.data}")
+                    return redirect(url_for('student_download_report_card',
+                                            admission_no=student.admission_no,
+                                            grade=report_form.grade.data,
+                                            term=report_form.term.data,
+                                            year=report_form.year.data,
+                                            exam_type=report_form.exam_type.data))
+                elif fee_form.submit.data and fee_form.validate_on_submit():
+                    logger.info(f"Redirecting to download_fee_statement: admission_no={fee_form.admission_no.data}, grade={fee_form.grade.data}, term={fee_form.term.data}, year={fee_form.year.data}")
+                    return redirect(url_for('student_download_fee_statement',
+                                            admission_no=student.admission_no,
+                                            grade=fee_form.grade.data,
+                                            term=fee_form.term.data,
+                                            year=fee_form.year.data))
+                elif view_results_form.submit.data and view_results_form.validate_on_submit():
+                    logger.info(f"Redirecting to view_results: admission_no={student.admission_no}, grade={view_results_form.grade.data}, term={view_results_form.term.data}, year={view_results_form.year.data}, exam_type={view_results_form.exam_type.data}")
+                    return redirect(url_for('student_view_results',
+                                            admission_no=student.admission_no,
+                                            grade=view_results_form.grade.data,
+                                            term=view_results_form.term.data,
+                                            year=view_results_form.year.data,
+                                            exam_type=view_results_form.exam_type.data))
+                else:
+                    for form, form_name in [(report_form, 'ReportCardForm'), (fee_form, 'FeeStatementForm'), (view_results_form, 'ResultsFilterForm')]:
+                        for field, errors in form.errors.items():
+                            for error in errors:
+                                logger.error(f"{form_name} error in {field}: {error}, submitted value: {request.form.get(field, 'None')}")
+                                flash(f"{form_name} error: {error}", 'danger')
+
+            # Fetch announcements
+            recent_announcements = db_session.query(Announcements).order_by(Announcements.date.desc()).limit(5).all()
+            recent_announcements = [{'content': a.content, 'date': a.date} for a in recent_announcements]
+
             return render_template(
                 template,
-                form=ReportCardForm(admission_no=student.admission_no, grade=student.grade),
-                fee_form=FeeForm(role='student'),
                 student=student_data,
+                recent_announcements=recent_announcements,
+                report_form=report_form,
+                fee_form=fee_form,
+                view_results_form=view_results_form,
                 term_info=term_info,
-                marks=[],
-                recent_announcements=[],
-                content_data=content_data
+                content_data=content_data,
+                parent_view=False
             )
+
         # Handle parent-specific logic
         elif current_user.role == 'parent':
+            report_form = ReportCardForm()
+            linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
+                join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
+                filter(ParentStudent.parent_id == current_user.id).all()
+            report_form.admission_no.choices = [
+                (s.admission_no, f"{s.name} ({s.admission_no})") for s in linked_students
+            ] if linked_students else []
+            fee_form = FeeStatementForm()
+            fee_form.admission_no.choices = report_form.admission_no.choices
+            link_form = LinkParentStudentForm()
+            view_results_form = ResultsFilterForm()
+
+            # Handle form submissions
+            if request.method == 'POST':
+                logger.debug(f"POST data: {request.form}")
+                if report_form.submit.data and report_form.validate_on_submit():
+                    logger.info(f"Parent redirecting to download_report_card: admission_no={report_form.admission_no.data}")
+                    return redirect(url_for('student_download_report_card',
+                                            admission_no=report_form.admission_no.data,
+                                            grade=report_form.grade.data,
+                                            term=report_form.term.data,
+                                            year=report_form.year.data,
+                                            exam_type=report_form.exam_type.data))
+                elif fee_form.submit.data and fee_form.validate_on_submit():
+                    logger.info(f"Parent redirecting to download_fee_statement: admission_no={fee_form.admission_no.data}")
+                    return redirect(url_for('student_download_fee_statement',
+                                            admission_no=fee_form.admission_no.data,
+                                            grade=fee_form.grade.data,
+                                            term=fee_form.term.data,
+                                            year=fee_form.year.data))
+                elif view_results_form.submit.data and view_results_form.validate_on_submit():
+                    logger.info(f"Parent redirecting to view_results: admission_no={view_results_form.admission_no.data}")
+                    return redirect(url_for('student_view_results',
+                                            admission_no=report_form.admission_no.data,
+                                            grade=view_results_form.grade.data,
+                                            term=view_results_form.term.data,
+                                            year=view_results_form.year.data,
+                                            exam_type=view_results_form.exam_type.data))
+                elif link_form.validate_on_submit():
+                    # Handle parent-student linking logic (assumed to be defined elsewhere)
+                    pass
+
             return render_template(
                 template,
-                form=ReportCardForm(),
-                link_form=LinkParentStudentForm(),
-                fee_form=FeeForm(role='parent'),
+                report_form=report_form,
+                link_form=link_form,
+                fee_form=fee_form,
+                view_results_form=view_results_form,
                 term_info=term_info,
-                content_data=content_data
+                content_data=content_data,
+                parent_view=True
             )
 
         # Default for other roles (admin, teacher, bursar)
@@ -674,6 +863,7 @@ def dashboard():
             term_info=term_info,
             content_data=content_data
         )
+
     except Exception as e:
         db_session.rollback()
         logger.error(f"Unexpected error in dashboard: {str(e)}\n{traceback.format_exc()}")
@@ -682,12 +872,14 @@ def dashboard():
             template or 'index.html',
             term_info={},
             content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
-            form=None,
-            fee_form=None,
-            link_form=None,
+            report_form=ReportCardForm(),
+            fee_form=FeeStatementForm(),
+            view_results_form=ResultsFilterForm(),
+            link_form=LinkParentStudentForm() if current_user.role == 'parent' else None,
             student=None,
             marks=[],
-            recent_announcements=[]
+            recent_announcements=[],
+            parent_view=current_user.role == 'parent'
         )
     finally:
         db_session.close()
@@ -729,82 +921,59 @@ def admin_dashboard():
             contact_content="Error loading content.",
             recent_announcements=[]
         )
-@app.route('/parent/dashboard', methods=['GET', 'POST'])
+@app.route('/parent/dashboard', methods=['GET'])
 @login_required
 def parent_dashboard():
-    """Render the parent dashboard with linked students and forms."""
+    """Render the parent dashboard with linked students and direct access to their dashboards."""
     if current_user.role != 'parent':
-        logger.error(f"Unauthorized access to parent_dashboard by user {current_user.id} with role {current_user.role}")
+        logger.error(f"Unauthorized access to parent_dashboard by user {getattr(current_user, 'id', 'N/A')} with role {getattr(current_user, 'role', 'unknown')}")
         flash('You are not authorized to access this page.', 'danger')
-        return redirect(url_for('app.index'))
+        return redirect(url_for('index'))
 
     db_session = next(get_db())
     try:
         term_info, content_data = fetch_common_data()
-        parent_name = getattr(current_user, 'name', current_user.username or f'Parent_{current_user.id}')
-        logger.debug(f"Parent name: {current_user.name}, username: {current_user.username}, parent_id: {current_user.id}")
+        parent_name = current_user.username or f'Parent_{current_user.id}'
+        logger.debug(f"Parent details - ID: {current_user.id}, Username: {parent_name}, Role: {current_user.role}")
 
         # Fetch linked students
+        logger.debug(f"Querying linked students for parent_id: {current_user.id}")
         linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
             join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
             filter(ParentStudent.parent_id == current_user.id).all()
+        logger.debug(f"Raw linked students: {linked_students}")
+
         linked_students = [
-            {'admission_no': s.admission_no, 'name': s.name or 'Unknown', 'grade': s.grade or 'N/A'}
+            {
+                'admission_no': s.admission_no,
+                'name': s.name if s.name else 'Unknown',
+                'grade': s.grade if s.grade else 'N/A'
+            }
             for s in linked_students
         ]
+        logger.debug(f"Processed linked students: {linked_students}")
 
-        # Initialize forms
-        form = ReportCardForm()
-        form.admission_no.choices = [
-            (s['admission_no'], f"{s['name']} ({s['admission_no']})")
-            for s in linked_students
-        ] if linked_students else []
-        fee_form = FeeForm(role='parent')
-        fee_form.admission_no.choices = form.admission_no.choices
-
-        # Handle selected student
-        admission_no = request.args.get('admission_no')
-        student = None
-        marks = []
-        if admission_no:
-            # Verify link
-            parent_student = db_session.query(ParentStudent).filter_by(
-                parent_id=current_user.id,
-                admission_no=admission_no
-            ).first()
-            if parent_student:
-                student_data = db_session.query(Student.admission_no, Student.name, Student.grade).\
-                    filter_by(admission_no=admission_no).first()
-                if student_data:
-                    student = {'admission_no': student_data.admission_no, 'name': student_data.name or 'Unknown', 'grade': student_data.grade or 'N/A'}
-                    marks = db_session.query(Marks.learning_area, Marks.total_marks, Marks.exam_type, Marks.term, Marks.year, Marks.grade).\
-                        filter_by(admission_no=admission_no).\
-                        order_by(Marks.year.desc(), Marks.term.desc()).limit(10).all()
-                    marks = [
-                        {'learning_area': row[0], 'total_marks': row[1], 'exam_type': row[2], 'term': row[3], 'year': row[4], 'grade': row[5]}
-                        for row in marks
-                    ]
-                else:
-                    logger.warning(f"Student not found for admission_no: {admission_no}")
-                    flash('Student not found.', 'danger')
-            else:
-                logger.warning(f"Parent {current_user.id} not linked to admission_no: {admission_no}")
-                flash('You are not authorized to view this student’s data.', 'danger')
+        if not linked_students:
+            logger.info(f"No linked students found for parent_id: {current_user.id}")
+            flash('No learners linked to your account. Please contact an administrator to link a learner.', 'info')
 
         # Fetch recent announcements
         recent_announcements = db_session.query(Announcements.content, Announcements.date).\
             order_by(Announcements.date.desc()).limit(5).all()
-        recent_announcements = [{'content': row[0], 'date': row[1]} for row in recent_announcements]
+        recent_announcements = [
+            {
+                'content': row.content if row.content else 'No content available',
+                'date': row.date.strftime('%Y-%m-%d') if row.date else 'Unknown date'
+            }
+            for row in recent_announcements
+        ]
+        logger.debug(f"Recent announcements: {recent_announcements}")
 
         return render_template(
             'parent_dashboard.html',
             parent_name=parent_name,
             linked_students=linked_students,
-            student=student,
-            marks=marks,
             recent_announcements=recent_announcements,
-            form=form,
-            fee_form=fee_form,
             term_info=term_info,
             content_data=content_data
         )
@@ -815,11 +984,7 @@ def parent_dashboard():
             'parent_dashboard.html',
             parent_name=parent_name,
             linked_students=[],
-            student=None,
-            marks=[],
             recent_announcements=[],
-            form=ReportCardForm(),
-            fee_form=FeeForm(role='parent'),
             term_info=term_info,
             content_data=content_data
         )
@@ -830,30 +995,35 @@ def parent_dashboard():
             'parent_dashboard.html',
             parent_name=parent_name,
             linked_students=[],
-            student=None,
-            marks=[],
             recent_announcements=[],
-            form=ReportCardForm(),
-            fee_form=FeeForm(role='parent'),
             term_info=term_info,
             content_data=content_data
         )
     finally:
         db_session.close()
-
-@app.route('/student_dashboard', methods=['GET'])
+@app.route('/parent/student_dashboard/<admission_no>', methods=['GET', 'POST'])
 @login_required
-@student_required
-def student_dashboard():
-    """Render the student dashboard with academic and fee information."""
+@parent_required
+def parent_student_dashboard(admission_no):
+    """Render the student dashboard for a parent to view their linked student's data."""
     db_session = next(get_db())
     try:
+        # Verify parent-student link
+        link = db_session.query(ParentStudent).filter_by(
+            parent_id=current_user.id,
+            admission_no=admission_no
+        ).first()
+        if not link:
+            logger.warning(f"Parent {current_user.id} attempted to access unlinked student {admission_no}")
+            flash('You are not authorized to view this child\'s dashboard.', 'danger')
+            return redirect(url_for('parent_dashboard'))
+
         # Fetch student data
-        student = db_session.query(Student).filter_by(admission_no=current_user.admission_no).first()
+        student = db_session.query(Student).filter_by(admission_no=admission_no).first()
         if not student:
-            logger.warning(f"No student found for admission_no={current_user.admission_no}")
+            logger.warning(f"No student found for admission_no={admission_no}")
             flash('Student profile not found.', 'danger')
-            return redirect(url_for('logout'))
+            return redirect(url_for('parent_dashboard'))
 
         student_data = {
             'admission_no': student.admission_no,
@@ -861,7 +1031,7 @@ def student_dashboard():
             'grade': student.grade
         }
 
-        # Fetch marks, excluding percentage and exam_out_of
+        # Fetch marks
         marks = db_session.query(Marks).filter_by(admission_no=student.admission_no).order_by(Marks.year.desc(), Marks.term.desc()).limit(10).all()
         marks = [{
             'learning_area': m.learning_area,
@@ -879,117 +1049,386 @@ def student_dashboard():
         # Fetch term_info and content_data
         term_info, content_data = fetch_common_data()
 
-        # Initialize ReportCardForm
-        form = ReportCardForm(admission_no=student.admission_no, grade=student.grade)
+        # Initialize forms
+        report_form = ReportCardForm(admission_no=student.admission_no, grade=student.grade)
         grades = db_session.query(Marks.grade).filter_by(admission_no=student.admission_no).distinct().order_by(Marks.grade).all()
         grades = [(g[0], g[0]) for g in grades] or [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
-        form.grade.choices = grades
-        form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
-        form.admission_no.data = student.admission_no
-        form.grade.data = student.grade
-        form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        form.exam_type.choices = [('endterm', 'End Term'), ('midterm', 'Mid Term')]
+        report_form.grade.choices = grades
+        report_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+        report_form.admission_no.data = student.admission_no
+        report_form.grade.data = student.grade
+        report_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
+        report_form.exam_type.choices = [('endterm', 'End Term'), ('midterm', 'Mid Term')]
 
-        # Initialize FeeForm
-        fee_form = FeeForm(role='student')
-        fee_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
-        fee_form.admission_no.data = student.admission_no
-        fee_form.grade.choices = [(student.grade, student.grade)]
+        fee_form = FeeStatementForm()
+        linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
+            join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
+            filter(ParentStudent.parent_id == current_user.id).all()
+        fee_form.admission_no.choices = [
+            (s.admission_no, f"{s.name} ({s.admission_no})")
+            for s in linked_students
+        ] if linked_students else []
+        fee_form.grade.choices = grades
         fee_form.grade.data = student.grade
         fee_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
         fee_form.year.data = str(datetime.now().year)
+
+        view_results_form = ResultsFilterForm(admission_no=student.admission_no, grade=student.grade)
+        view_results_form.grade.choices = grades
+        view_results_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+        view_results_form.admission_no.data = student.admission_no
+        view_results_form.grade.data = student.grade
+        view_results_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
+        view_results_form.exam_type.choices = [('endterm', 'End Term'), ('midterm', 'Mid Term')]
 
         return render_template(
             'student_dashboard.html',
             student=student_data,
             marks=marks,
             recent_announcements=recent_announcements,
-            form=form,
+            report_form=report_form,
             fee_form=fee_form,
+            view_results_form=view_results_form,
             term_info=term_info,
-            content_data=content_data
+            content_data=content_data,
+            parent_view=True,
+            linked_students=linked_students
         )
-    except Exception as e:
+    except SQLAlchemyError as e:
         db_session.rollback()
-        logger.error(f"Error in student_dashboard: {str(e)}\n{traceback.format_exc()}")
-        flash('An error occurred while loading the student dashboard.', 'danger')
+        logger.error(f"Database error in parent_student_dashboard for parent_id={current_user.id}, admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('Database error: Unable to load student dashboard. Please try again later.', 'danger')
         return render_template(
             'student_dashboard.html',
             student=None,
             marks=[],
             recent_announcements=[],
-            form=ReportCardForm(),
-            fee_form=FeeForm(role='student'),
+            report_form=ReportCardForm(),
+            fee_form=FeeStatementForm(),
+            view_results_form=ResultsFilterForm(),
             term_info={},
-            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''}
+            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
+            parent_view=True,
+            linked_students=[]
+        )
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Unexpected error in parent_student_dashboard for parent_id={current_user.id}, admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('An unexpected error occurred. Please try again later.', 'danger')
+        return render_template(
+            'student_dashboard.html',
+            student=None,
+            marks=[],
+            recent_announcements=[],
+            report_form=ReportCardForm(),
+            fee_form=FeeStatementForm(),
+            view_results_form=ResultsFilterForm(),
+            term_info={},
+            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
+            parent_view=True,
+            linked_students=[]
+        )
+    finally:
+        db_session.close()
+        
+from flask import render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
+from sqlalchemy.exc import SQLAlchemyError
+import traceback
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+@app.route('/student_dashboard', methods=['GET', 'POST'])
+@app.route('/student_dashboard/<admission_no>', methods=['GET', 'POST'])
+@login_required
+def student_dashboard(admission_no=None):
+    """Render the student dashboard for students or parents, with academic and fee information."""
+    db_session = next(get_db())
+    try:
+        # Determine user role and admission number
+        if current_user.role == 'student':
+            if admission_no and admission_no != current_user.admission_no:
+                logger.warning(f"Student {current_user.id} attempted to access dashboard for admission_no={admission_no}")
+                flash('You can only view your own dashboard.', 'danger')
+                return redirect(url_for('student_dashboard'))
+            admission_no = current_user.admission_no
+            parent_view = False
+        elif current_user.role == 'parent':
+            if not admission_no:
+                logger.warning(f"Parent {current_user.id} accessed /student_dashboard without admission_no")
+                flash('Please select a linked student.', 'danger')
+                return redirect(url_for('parent_dashboard'))
+            parent_student = db_session.query(ParentStudent).filter_by(
+                parent_id=current_user.id,
+                admission_no=admission_no
+            ).first()
+            if not parent_student:
+                logger.warning(f"Parent {current_user.id} not linked to admission_no={admission_no}")
+                flash('You are not authorized to view this student’s dashboard.', 'danger')
+                return redirect(url_for('parent_dashboard'))
+            parent_view = True
+        else:
+            logger.error(f"Unauthorized role {current_user.role} for user {current_user.id}")
+            flash('You are not authorized to access this page.', 'danger')
+            return redirect(url_for('index'))
+
+        # Fetch student data
+        student = db_session.query(Student).filter_by(admission_no=admission_no).first()
+        if not student:
+            logger.warning(f"No student found for admission_no={admission_no}")
+            flash('Student profile not found.', 'danger')
+            return redirect(url_for('logout' if current_user.role == 'student' else 'parent_dashboard'))
+
+        student_data = {
+            'admission_no': student.admission_no,
+            'name': student.name,
+            'grade': student.grade
+        }
+
+        # Fetch marks
+        marks = db_session.query(Marks).filter_by(admission_no=student.admission_no).order_by(Marks.year.desc(), Marks.term.desc()).limit(10).all()
+        marks = [{
+            'learning_area': m.learning_area,
+            'total_marks': m.total_marks,
+            'exam_type': m.exam_type,
+            'term': m.term,
+            'year': m.year,
+            'grade': m.grade
+        } for m in marks]
+
+        # Fetch term_info
+        term_data = db_session.query(TermInfo).filter_by(id=1).first()
+        term_info = {
+            'term': term_data.term if term_data and term_data.term else 'Term 1',
+            'year': term_data.year if term_data and term_data.year else '2025',
+            'principal': term_data.principal if term_data and term_data.principal else 'Mr. Principal',
+            'start_date': term_data.start_date if term_data and term_data.start_date else '2025-01-01',
+            'end_date': term_data.end_date if term_data and term_data.end_date else '2025-04-01'
+        }
+        content_data = fetch_common_data()[1]
+
+        # Fetch grades for form choices
+        grades = db_session.query(Marks.grade).filter_by(admission_no=admission_no).distinct().order_by(Marks.grade).all()
+        grades = [(g[0], g[0]) for g in grades if g[0] in [grade[0] for grade in GRADES]] or GRADES
+
+        # Fetch linked students for parent view
+        linked_students = []
+        if parent_view:
+            linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
+                join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
+                filter(ParentStudent.parent_id == current_user.id).all()
+            linked_students = [
+                {
+                    'admission_no': s.admission_no,
+                    'name': s.name if s.name else 'Unknown',
+                    'grade': s.grade if s.grade else 'N/A'
+                }
+                for s in linked_students
+            ]
+
+        # Initialize forms
+        report_form = ReportCardForm(admission_no=student.admission_no, grade=student.grade)
+        report_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+        report_form.admission_no.data = student.admission_no
+        report_form.grade.choices = grades
+        report_form.grade.data = student.grade if student.grade in [g[0] for g in grades] else grades[0][0]
+        report_form.term.choices = TERMS
+        report_form.term.data = term_info['term'] if term_info['term'] in [t[0] for t in TERMS] else TERMS[0][0]
+        report_form.exam_type.choices = EXAM_TYPES
+        report_form.exam_type.data = 'endterm' if 'endterm' in [e[0] for e in EXAM_TYPES] else EXAM_TYPES[0][0]
+        report_form.year.data = int(term_info['year']) if term_info['year'].isdigit() else datetime.now().year
+
+        fee_form = FeeStatementForm(admission_no=student.admission_no, grade=student.grade)
+        if parent_view:
+            fee_form.admission_no.choices = [
+                (s.admission_no, f"{s.name} ({s.admission_no})")
+                for s in linked_students
+            ]
+            fee_form.admission_no.data = admission_no
+        else:
+            fee_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+            fee_form.admission_no.data = student.admission_no
+        fee_form.grade.choices = grades
+        fee_form.grade.data = student.grade if student.grade in [g[0] for g in grades] else grades[0][0]
+        fee_form.term.choices = TERMS
+        fee_form.term.data = term_info['term'] if term_info['term'] in [t[0] for t in TERMS] else TERMS[0][0]
+        fee_form.year.data = term_info['year'] if term_info['year'].isdigit() else str(datetime.now().year)
+
+        view_results_form = ResultsFilterForm(admission_no=student.admission_no, grade=student.grade)
+        view_results_form.grade.choices = grades
+        view_results_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+        view_results_form.admission_no.data = student.admission_no
+        view_results_form.grade.data = student.grade if student.grade in [g[0] for g in grades] else grades[0][0]
+        view_results_form.term.choices = TERMS
+        view_results_form.term.data = term_info['term'] if term_info['term'] in [t[0] for t in TERMS] else TERMS[0][0]
+        view_results_form.exam_type.choices = EXAM_TYPES
+        view_results_form.exam_type.data = 'endterm' if 'endterm' in [e[0] for e in EXAM_TYPES] else EXAM_TYPES[0][0]
+        view_results_form.year.data = int(term_info['year']) if term_info['year'].isdigit() else datetime.now().year
+
+        # Handle form submissions
+        if request.method == 'POST':
+            logger.debug(f"POST data: {request.form}")
+            if report_form.submit.data and report_form.validate_on_submit():
+                logger.info(f"Redirecting to download_report_card: admission_no={report_form.admission_no.data}, grade={report_form.grade.data}, term={report_form.term.data}, year={report_form.year.data}, exam_type={report_form.exam_type.data}")
+                return redirect(url_for('student_download_report_card',
+                                        admission_no=report_form.admission_no.data,
+                                        grade=report_form.grade.data,
+                                        term=report_form.term.data,
+                                        year=report_form.year.data,
+                                        exam_type=report_form.exam_type.data))
+            elif fee_form.submit.data and fee_form.validate_on_submit():
+                logger.info(f"Redirecting to download_fee_statement: admission_no={fee_form.admission_no.data}, grade={fee_form.grade.data}, term={fee_form.term.data}, year={fee_form.year.data}")
+                return redirect(url_for('student_download_fee_statement',
+                                        admission_no=fee_form.admission_no.data,
+                                        grade=fee_form.grade.data,
+                                        term=fee_form.term.data,
+                                        year=fee_form.year.data))
+            elif view_results_form.submit.data and view_results_form.validate_on_submit():
+                logger.info(f"Redirecting to view_results: admission_no={view_results_form.admission_no.data}, grade={view_results_form.grade.data}, term={view_results_form.term.data}, year={view_results_form.year.data}, exam_type={view_results_form.exam_type.data}")
+                return redirect(url_for('student_view_results',
+                                        admission_no=view_results_form.admission_no.data,
+                                        grade=view_results_form.grade.data,
+                                        term=view_results_form.term.data,
+                                        year=view_results_form.year.data,
+                                        exam_type=view_results_form.exam_type.data))
+            else:
+                for form, form_name in [(report_form, 'ReportCardForm'), (fee_form, 'FeeStatementForm'), (view_results_form, 'ResultsFilterForm')]:
+                    for field, errors in form.errors.items():
+                        for error in errors:
+                            logger.error(f"{form_name} error in {field}: {error}, submitted value: {request.form.get(field, 'None')}")
+                            flash(f"{form_name} error: {error}", 'danger')
+
+        # Fetch announcements
+        recent_announcements = db_session.query(Announcements).order_by(Announcements.date.desc()).limit(5).all()
+        recent_announcements = [{'content': a.content, 'date': a.date} for a in recent_announcements]
+
+        # Render dashboard
+        return render_template(
+            'student_dashboard.html',
+            student=student_data,
+            marks=marks,
+            recent_announcements=recent_announcements,
+            report_form=report_form,
+            fee_form=fee_form,
+            view_results_form=view_results_form,
+            term_info=term_info,
+            content_data=content_data,
+            parent_view=parent_view,
+            linked_students=linked_students
+        )
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error(f"Database error in student_dashboard for admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('Database error: Unable to load dashboard. Please try again later.', 'danger')
+        return render_template(
+            'student_dashboard.html',
+            student=None,
+            marks=[],
+            recent_announcements=[],
+            report_form=ReportCardForm(),
+            fee_form=FeeStatementForm(),
+            view_results_form=ResultsFilterForm(),
+            term_info={},
+            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
+            parent_view=parent_view,
+            linked_students=[]
+        )
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Unexpected error in student_dashboard for admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('An unexpected error occurred. Please try again later.', 'danger')
+        return render_template(
+            'student_dashboard.html',
+            student=None,
+            marks=[],
+            recent_announcements=[],
+            report_form=ReportCardForm(),
+            fee_form=FeeStatementForm(),
+            view_results_form=ResultsFilterForm(),
+            term_info={},
+            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
+            parent_view=parent_view,
+            linked_students=[]
         )
     finally:
         db_session.close()
 
-
-
-
 @app.route('/parent/link_student', methods=['GET', 'POST'])
 @login_required
 def link_student():
-    """Link a parent to a student using parent ID and admission number."""
+    """Link a parent to a student using admission number."""
     if current_user.role != 'parent':
-        logger.error(f"Unauthorized access to link_student by user {current_user.id} with role {current_user.role}")
+        logger.error(f"Unauthorized access to link_student by user {getattr(current_user, 'id', 'N/A')} with role {getattr(current_user, 'role', 'N/A')}")
         flash('You are not authorized to link students.', 'danger')
-        return redirect(url_for('app.index'))
+        return redirect(url_for('index'))
 
-    form = LinkParentStudentForm()
-    # Populate parent_id choices with current user's ID and username
-    form.parent_id.choices = [(str(current_user.id), current_user.username)]
+    # Initialize form with pre-filled parent username
+    form = LinkParentStudentForm(parent_id=current_user.username)
     term_info, content_data = fetch_common_data()
+    parent_name = current_user.username or f'Parent_{current_user.id}'
     db_session = next(get_db())
     try:
-        if request.method == 'POST' and form.validate_on_submit():
-            parent_id = form.parent_id.data
-            admission_no = form.admission_no.data.strip()
+        if request.method == 'POST':
+            logger.debug(f"Form submitted with parent_id={form.parent_id.data}, admission_no={form.admission_no.data}, user_username={current_user.username}, user_id={current_user.id}")
 
-            # Verify parent_id matches current_user
-            if int(parent_id) != current_user.id:
-                logger.warning(f"Parent ID mismatch: {parent_id} != {current_user.id}")
-                flash('The selected parent ID does not match your account.', 'danger')
-                return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data)
+            if form.validate_on_submit():
+                admission_no = form.admission_no.data.strip()
 
-            # Check if student exists
-            student = db_session.query(Student).filter_by(admission_no=admission_no).first()
-            if not student:
-                logger.warning(f"Student not found for admission_no: {admission_no}")
-                flash('No student found with this admission number.', 'danger')
-                return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data)
+                # Verify parent_id matches current_user.username
+                if form.parent_id.data != current_user.username:
+                    logger.warning(f"Parent username mismatch: submitted={form.parent_id.data}, expected={current_user.username}")
+                    flash('Invalid parent username. Please use your own username.', 'danger')
+                    return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
 
-            # Check if already linked
-            existing_link = db_session.query(ParentStudent).filter_by(
-                parent_id=current_user.id,
-                admission_no=admission_no
-            ).first()
-            if existing_link:
-                logger.warning(f"Existing link found for parent_id: {current_user.id}, admission_no: {admission_no}")
-                flash('This student is already linked to your account.', 'warning')
-                return redirect(url_for('app.parent_dashboard'))
+                # Fetch parent by username to get their ID
+                parent = db_session.query(User).filter_by(username=current_user.username, role='parent').first()
+                if not parent:
+                    logger.warning(f"Parent not found for username={current_user.username}")
+                    flash('Parent account not found.', 'danger')
+                    return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
 
-            # Create new link
-            new_link = ParentStudent(parent_id=current_user.id, admission_no=admission_no)
-            db_session.add(new_link)
-            db_session.commit()
-            logger.info(f"Linked parent_id: {current_user.id} to admission_no: {admission_no}")
-            flash(f'Successfully linked student {student.name} to your account.', 'success')
-            return redirect(url_for('app.parent_dashboard'))
+                # Check if student exists
+                student = db_session.query(Student).filter_by(admission_no=admission_no).first()
+                if not student:
+                    logger.warning(f"Student not found for admission_no={admission_no}")
+                    flash('No student found with this admission number.', 'danger')
+                    return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
 
-        return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data)
+                # Check if already linked
+                existing_link = db_session.query(ParentStudent).filter_by(
+                    parent_id=parent.id,
+                    admission_no=admission_no
+                ).first()
+                if existing_link:
+                    logger.warning(f"Existing link found for parent_id={parent.id}, admission_no={admission_no}")
+                    flash('This student is already linked to your account.', 'warning')
+                    return redirect(url_for('parent_dashboard'))
+
+                # Create new link
+                new_link = ParentStudent(parent_id=parent.id, admission_no=admission_no)
+                db_session.add(new_link)
+                db_session.commit()
+                logger.info(f"Linked parent_id={parent.id} to admission_no={admission_no}")
+                flash(f'Successfully linked student {student.name} to your account.', 'success')
+                return redirect(url_for('parent_dashboard'))
+
+            else:
+                logger.debug(f"Form validation failed: {form.errors}")
+                flash('Form validation failed. Please check your input.', 'danger')
+
+        return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error(f"Database error in link_student for parent_id={current_user.id}: {str(e)}\n{traceback.format_exc()}")
         flash('Database error: Unable to link student. Please try again later.', 'danger')
-        return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data)
+        return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
     except Exception as e:
         db_session.rollback()
         logger.error(f"Unexpected error in link_student for parent_id={current_user.id}: {str(e)}\n{traceback.format_exc()}")
         flash('An unexpected error occurred. Please try again later.', 'danger')
-        return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data)
+        return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
     finally:
         db_session.close()
 
@@ -1876,76 +2315,96 @@ def get_payment_history(admission_no):
 
 
 
-@app.route('/student/download_fee_statement', methods=['GET', 'POST'])
+@app.route('/student_download_fee_statement', methods=['GET', 'POST'])
 @login_required
-def student_download_fee_statement():
+def student_download_fee_statement(admission_no=None, grade=None, term=None, year=None):
     """Download fee statement for a student as PDF, accessible by both parents and students."""
-    form = FeeForm(role=current_user.role)
+    form = FeeStatementForm()
     term_info, content_data = fetch_common_data()
     db_session = next(get_db())
+    linked_students = []
+    
     try:
+        # Initialize grade choices for all cases
+        form.grade.choices = [(g, g) for g in GRADES]  # GRADES is assumed to be a list of valid grades
+
         if current_user.role == 'parent':
-            # For parents, admission_no comes from form and must be linked
+            # Fetch linked students for parent
             linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
                 join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
                 filter(ParentStudent.parent_id == current_user.id).all()
+            
             form.admission_no.choices = [
                 (s.admission_no, f"{s.name} ({s.admission_no})")
                 for s in linked_students
             ] if linked_students else []
+            
             if not linked_students:
                 logger.warning(f"No linked students found for parent_id: {current_user.id}")
                 flash('No linked students found. Please link a student.', 'danger')
                 return redirect(url_for('parent_dashboard'))
-            admission_no = form.admission_no.data if form.validate_on_submit() else request.args.get('admission_no')
+            
+            # Get admission_no from form, args, or None
+            admission_no = admission_no or (form.admission_no.data if form.validate_on_submit() else request.args.get('admission_no'))
+            
             if not admission_no:
                 logger.warning(f"No admission_no provided for parent_id: {current_user.id}")
                 flash('Please select a student to download their fee statement.', 'danger')
                 return redirect(url_for('parent_dashboard'))
-            # Verify the parent-student link
+            
+            # Verify parent-student linkage
             parent_student = db_session.query(ParentStudent).filter_by(
                 parent_id=current_user.id,
                 admission_no=admission_no
             ).first()
+            
             if not parent_student:
                 logger.warning(f"Parent {current_user.id} not linked to admission_no: {admission_no}")
                 flash('You are not authorized to view this student’s fee statement.', 'danger')
                 return redirect(url_for('parent_dashboard'))
+            
             student_data = db_session.query(Student.admission_no, Student.name, Student.grade).filter_by(admission_no=admission_no).first()
             if not student_data:
                 logger.error(f"Student not found: {admission_no}")
                 flash('Student profile not found.', 'danger')
                 return redirect(url_for('parent_dashboard'))
-            form.grade.choices = [(student_data.grade, student_data.grade)] if student_data.grade else [('all', 'All')]
-            form.grade.data = student_data.grade
+            
+            # Set default grade from student data or form
+            form.grade.data = form.grade.data or student_data.grade
+
         elif current_user.role == 'student':
-            # For students, use current_user.admission_no
+            # Handle student role
             admission_no = getattr(current_user, 'admission_no', None)
             if not admission_no:
                 logger.error(f"No admission number for user {current_user.id}")
                 flash('No admission number associated with your account. Please contact the administrator.', 'danger')
                 return redirect(url_for('student_dashboard'))
+            
             student_data = db_session.query(Student.admission_no, Student.name, Student.grade).filter_by(admission_no=admission_no).first()
             if not student_data:
                 logger.error(f"Student not found: {admission_no}")
                 flash('Student profile not found.', 'danger')
                 return redirect(url_for('student_dashboard'))
+            
             form.admission_no.choices = [(student_data.admission_no, f"{student_data.name} ({student_data.admission_no})")]
             form.admission_no.data = student_data.admission_no
-            form.grade.choices = [(student_data.grade, student_data.grade)] if student_data.grade else [('all', 'All')]
-            form.grade.data = student_data.grade
+            form.grade.data = form.grade.data or student_data.grade
+
         else:
             logger.error(f"Unauthorized role {current_user.role} for user {current_user.id}")
             flash('You are not authorized to access this page.', 'danger')
             return redirect(url_for('index'))
 
-        form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        form.format.data = 'pdf'
+        # Set term and year choices
+        form.term.choices = [(t, t) for t in TERMS]  # TERMS is assumed to be a list of valid terms
         form.year.data = str(datetime.now().year)
 
         if request.method == 'POST' and form.validate_on_submit():
+            grade = form.grade.data
             term = form.term.data
             year = form.year.data
+            
+            # Query fee data with flexible filters
             query = db_session.query(
                 Fee.admission_no,
                 Student.name.label('student_name'),
@@ -1956,46 +2415,52 @@ def student_download_fee_statement():
                 Fee.term,
                 Fee.year
             ).join(Student, Fee.admission_no == Student.admission_no).filter(Fee.admission_no == admission_no)
+            
             if term:
                 query = query.filter(Fee.term == term)
             if year:
                 query = query.filter(Fee.year == year)
+            if grade:
+                query = query.filter(Fee.grade.ilike(grade, escape='/'))
+            
             fees = query.all()
+            
             if not fees:
-                logger.warning(f"No fee statement available for admission_no={admission_no}, term={term}, year={year}")
-                flash(f'No fee statement available for term {term}, year {year}.', 'warning')
+                logger.warning(f"No fee statement available for admission_no={admission_no}, grade={grade}, term={term}, year={year}")
+                flash(f'No fee statement available for grade {grade}, term {term}, year {year}.', 'warning')
                 return render_template(
-                    'parent_dashboard.html' if current_user.role == 'parent' else 'student_dashboard.html',
+                    'student_dashboard.html',
                     student={'admission_no': student_data.admission_no, 'name': student_data.name, 'grade': student_data.grade},
-                    marks=[],
                     recent_announcements=[],
-                    form=ReportCardForm(admission_no=student_data.admission_no, grade=student_data.grade),
+                    report_form=ReportCardForm(admission_no=student_data.admission_no, grade=student_data.grade),
                     fee_form=form,
+                    view_results_form=ResultsFilterForm(admission_no=student_data.admission_no, grade=student_data.grade),
                     term_info=term_info,
                     content_data=content_data,
-                    linked_students=linked_students if current_user.role == 'parent' else [],
-                    parent_id=getattr(current_user, 'name', current_user.username or 'Parent') if current_user.role == 'parent' else None
+                    parent_view=current_user.role == 'parent',
+                    linked_students=linked_students
                 )
 
-            buffer = generate_fee_statement([(f.admission_no, f.student_name, f.total_fee, f.amount_paid, f.balance, f.grade, f.term, f.year) for f in fees], student_data.grade, term, year)
+            # Generate PDF
+            buffer = generate_fee_statement_pdf([(f.admission_no, f.student_name, f.total_fee, f.amount_paid, f.balance, f.grade, f.term, f.year) for f in fees], grade, term, year)
             if not buffer or len(buffer.getvalue()) == 0:
                 logger.error(f"Empty or invalid fee statement PDF buffer for admission_no={admission_no}")
                 flash('Error generating fee statement PDF.', 'danger')
                 return render_template(
-                    'parent_dashboard.html' if current_user.role == 'parent' else 'student_dashboard.html',
+                    'student_dashboard.html',
                     student={'admission_no': student_data.admission_no, 'name': student_data.name, 'grade': student_data.grade},
-                    marks=[],
                     recent_announcements=[],
-                    form=ReportCardForm(admission_no=student_data.admission_no, grade=student_data.grade),
+                    report_form=ReportCardForm(admission_no=student_data.admission_no, grade=student_data.grade),
                     fee_form=form,
+                    view_results_form=ResultsFilterForm(admission_no=student_data.admission_no, grade=student_data.grade),
                     term_info=term_info,
                     content_data=content_data,
-                    linked_students=linked_students if current_user.role == 'parent' else [],
-                    parent_id=getattr(current_user, 'name', current_user.username or 'Parent') if current_user.role == 'parent' else None
+                    parent_view=current_user.role == 'parent',
+                    linked_students=linked_students
                 )
 
             buffer.seek(0)
-            filename = f'fee_statement_{admission_no}_{term}_{year}.pdf'.replace(' ', '_')
+            filename = f'fee_statement_{admission_no}_{grade}_{term}_{year}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'.replace(' ', '_')
             logger.info(f"Fee statement generated for {admission_no}, size: {len(buffer.getvalue())} bytes")
             return send_file(
                 buffer,
@@ -2004,63 +2469,54 @@ def student_download_fee_statement():
                 mimetype='application/pdf'
             )
 
-        # For GET requests, render the appropriate dashboard with the form
-        marks = db_session.query(Marks.learning_area, Marks.total_marks, Marks.exam_type, Marks.term, Marks.year, Marks.grade).\
-            filter_by(admission_no=admission_no).order_by(Marks.year.desc(), Marks.term.desc()).limit(10).all()
-        marks = [{'learning_area': row[0], 'total_marks': row[1], 'exam_type': row[2], 'term': row[3], 'year': row[4], 'grade': row[5]} for row in marks]
-        recent_announcements = db_session.query(Announcements.content, Announcements.date).order_by(Announcements.date.desc()).limit(5).all()
-        recent_announcements = [{'content': row[0], 'date': row[1]} for row in recent_announcements]
-        report_form = ReportCardForm(admission_no=student_data.admission_no, grade=student_data.grade)
-        report_form.admission_no.choices = [(student_data.admission_no, f"{student_data.name} ({student_data.admission_no})")]
-        report_form.grade.choices = [(student_data.grade, student_data.grade)] if student_data.grade else [('all', 'All')]
-        report_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        report_form.exam_type.choices = [('endterm', 'End Term'), ('midterm', 'Mid Term')]
-
+        # Render template for GET request or form validation failure
         return render_template(
-            'parent_dashboard.html' if current_user.role == 'parent' else 'student_dashboard.html',
+            'student_dashboard.html',
             student={'admission_no': student_data.admission_no, 'name': student_data.name, 'grade': student_data.grade},
-            marks=marks,
-            recent_announcements=recent_announcements,
-            form=report_form,
+            recent_announcements=[],
+            report_form=ReportCardForm(admission_no=student_data.admission_no, grade=student_data.grade),
             fee_form=form,
+            view_results_form=ResultsFilterForm(admission_no=student_data.admission_no, grade=student_data.grade),
             term_info=term_info,
             content_data=content_data,
-            linked_students=linked_students if current_user.role == 'parent' else [],
-            parent_id=getattr(current_user, 'name', current_user.username or 'Parent') if current_user.role == 'parent' else None
+            parent_view=current_user.role == 'parent',
+            linked_students=linked_students
         )
+    
     except SQLAlchemyError as e:
         logger.error(f"Database error for admission_no={admission_no or 'unknown'}: {str(e)}\n{traceback.format_exc()}")
         flash('Database error: Unable to fetch fee statement data. Please try again later.', 'danger')
         return render_template(
-            'parent_dashboard.html' if current_user.role == 'parent' else 'student_dashboard.html',
+            'student_dashboard.html',
             student={'admission_no': '', 'name': '', 'grade': ''},
-            marks=[],
             recent_announcements=[],
-            form=ReportCardForm(),
+            report_form=ReportCardForm(),
             fee_form=form,
+            view_results_form=ResultsFilterForm(),
             term_info=term_info,
             content_data=content_data,
-            linked_students=[] if current_user.role == 'parent' else [],
-            parent_id=getattr(current_user, 'name', current_user.username or 'Parent') if current_user.role == 'parent' else None
+            parent_view=current_user.role == 'parent',
+            linked_students=linked_students
         )
+    
     except Exception as e:
         logger.error(f"Unexpected error in student_download_fee_statement: {str(e)}\n{traceback.format_exc()}")
         flash(f'Error: {str(e)}', 'danger')
         return render_template(
-            'parent_dashboard.html' if current_user.role == 'parent' else 'student_dashboard.html',
+            'student_dashboard.html',
             student={'admission_no': '', 'name': '', 'grade': ''},
-            marks=[],
             recent_announcements=[],
-            form=ReportCardForm(),
+            report_form=ReportCardForm(),
             fee_form=form,
+            view_results_form=ResultsFilterForm(),
             term_info=term_info,
             content_data=content_data,
-            linked_students=[] if current_user.role == 'parent' else [],
-            parent_id=getattr(current_user, 'name', current_user.username or 'Parent') if current_user.role == 'parent' else None
+            parent_view=current_user.role == 'parent',
+            linked_students=linked_students
         )
+    
     finally:
         db_session.close()
-        
         
 
         
@@ -2329,7 +2785,6 @@ def enter_marks():
                                 exam_type=exam_type,
                                 marks=marks,
                                 total_marks=marks,
-                                exam_out_of=100,
                                 term=term,
                                 year=year,
                                 grade=grade,
@@ -3187,61 +3642,169 @@ def view_messages():
         
         
         
-@app.route('/student/view_results', methods=['GET', 'POST'])
+@app.route('/student_view_results', methods=['GET', 'POST'])
 @login_required
-@student_required
-def student_view_results():
-    """View results for a student."""
-    form = ReportCardForm()
-    term_info, content_data = fetch_common_data()
+def student_view_results(admission_no=None, grade=None, term=None, year=None, exam_type=None):
+    """View results for a student, allowing selection of grade, term, year, and exam type."""
     db_session = next(get_db())
+    term_info, content_data = fetch_common_data()
     try:
-        student = db_session.query(User.admission_no, User.grade).filter_by(id=current_user.id, role='student').first()
-        if not student:
-            flash('Student profile not found.', 'danger')
-            logger.warning(f"Student profile not found for user_id={current_user.id}")
-            return redirect(url_for('student_dashboard'))
+        # Validate user role
+        if current_user.role not in ['student', 'parent']:
+            logger.error(f"Unauthorized role {current_user.role} for user {current_user.id}")
+            flash('You are not authorized to access this page.', 'danger')
+            return redirect(url_for('index'))
 
-        admission_no, student_grade = student
+        # Determine admission number and validate access
+        parent_view = False
+        if current_user.role == 'student':
+            if admission_no and admission_no != current_user.admission_no:
+                logger.warning(f"Student {current_user.id} attempted to access results for admission_no={admission_no}")
+                flash('You can only view your own results.', 'danger')
+                return redirect(url_for('student_dashboard'))
+            admission_no = current_user.admission_no
+        elif current_user.role == 'parent':
+            if not admission_no:
+                logger.warning(f"Parent {current_user.id} accessed /student_view_results without admission_no")
+                flash('Please select a linked student.', 'danger')
+                return redirect(url_for('parent_dashboard'))
+            parent_student = db_session.query(ParentStudent).filter_by(
+                parent_id=current_user.id,
+                admission_no=admission_no
+            ).first()
+            if not parent_student:
+                logger.warning(f"Parent {current_user.id} not linked to admission_no={admission_no}")
+                flash('You are not authorized to view this student’s results.', 'danger')
+                return redirect(url_for('parent_dashboard'))
+            parent_view = True
+
+        # Fetch student data
+        student = db_session.query(Student.admission_no, Student.name, Student.grade).filter_by(admission_no=admission_no).first()
+        if not student:
+            logger.warning(f"Student profile not found for admission_no={admission_no}")
+            flash('Student profile not found.', 'danger')
+            return redirect(url_for('logout' if current_user.role == 'student' else 'parent_dashboard'))
+
+        admission_no, student_name, student_grade = student
+
+        # Fetch available grades from Marks
+        grades = db_session.query(Marks.grade).filter_by(admission_no=admission_no).distinct().order_by(Marks.grade).all()
+        grade_choices = [(g[0], g[0]) for g in grades if g[0] in [grade[0] for grade in GRADES if grade[0] != 'all']] or [(student_grade, student_grade)]
+
+        # Initialize form
+        form = ResultsFilterForm(
+            admission_no=admission_no,
+            grade=student_grade if student_grade in [g[0] for g in grade_choices] else grade_choices[0][0],
+            term=term or (term_info.term if term_info and term_info.term else 'Term 1'),
+            year=int(year or (term_info.year if term_info and term_info.year else str(datetime.now().year))),
+            exam_type=exam_type or 'endterm'
+        )
+
+        # Set form choices
+        form.admission_no.choices = [(admission_no, f"{student_name} ({admission_no})")]
+        form.grade.choices = grade_choices
+        form.term.choices = TERMS
+        form.exam_type.choices = EXAM_TYPES
+
         marks = []
         fee = None
-        if form.validate_on_submit():
+        if request.method == 'POST' and form.validate_on_submit():
             grade = form.grade.data
             term = form.term.data
-            year = form.year.data
+            year = str(form.year.data)
             exam_type = form.exam_type.data.lower()
 
-            if grade.lower() != student_grade.lower():
+            # Validate grade for students
+            if current_user.role == 'student' and grade != student_grade:
+                logger.warning(f"Student {current_user.id} attempted to select invalid grade {grade}")
                 flash('You can only view results for your current grade.', 'danger')
-                return render_template('student_view_results.html', form=form, marks=[], fee=None, student_grade=student_grade, term_info=term_info, content_data=content_data)
+                return render_template(
+                    'student_view_results.html',
+                    form=form,
+                    marks=[],
+                    fee=None,
+                    student={'admission_no': admission_no, 'name': student_name, 'grade': student_grade},
+                    term_info=term_info,
+                    content_data=content_data,
+                    parent_view=parent_view
+                )
 
+            # Fetch filtered results
             marks = db_session.query(Marks.learning_area, Marks.total_marks, Marks.exam_type, Marks.term, Marks.year, Marks.grade).filter_by(
-                admission_no=admission_no, grade=grade, term=term, year=year, exam_type=exam_type
+                admission_no=admission_no,
+                grade=grade,
+                term=term,
+                year=year,
+                exam_type=exam_type
             ).all()
+
+            # Fetch fee information
             fee = db_session.query(Fee.total_fee, Fee.amount_paid, Fee.balance, Fee.grade, Fee.term, Fee.year).filter_by(
-                admission_no=admission_no, grade=grade, term=term, year=year
+                admission_no=admission_no,
+                grade=grade,
+                term=term,
+                year=year
             ).first()
 
             if not marks and not fee:
-                flash('No results or fees found for the selected filters.', 'warning')
+                exam_type_display = next((et[1] for et in EXAM_TYPES if et[0] == exam_type), exam_type)
+                flash(f'No results or fees found for {grade} {term} {year} ({exam_type_display}).', 'warning')
         else:
+            # Fetch recent results for GET request
             marks = db_session.query(Marks.learning_area, Marks.total_marks, Marks.exam_type, Marks.term, Marks.year, Marks.grade).filter_by(
-                admission_no=admission_no, grade=student_grade
+                admission_no=admission_no,
+                grade=student_grade
             ).order_by(Marks.year.desc(), Marks.term.desc()).limit(10).all()
             fee = db_session.query(Fee.total_fee, Fee.amount_paid, Fee.balance, Fee.grade, Fee.term, Fee.year).filter_by(
-                admission_no=admission_no, grade=student_grade
+                admission_no=admission_no,
+                grade=student_grade
             ).order_by(Fee.year.desc(), Fee.term.desc()).first()
 
+        # Format marks and fee for template
         marks = [{'learning_area': m.learning_area, 'total_marks': m.total_marks, 'exam_type': m.exam_type, 'term': m.term, 'year': m.year, 'grade': m.grade} for m in marks]
         fee = {'total_fee': fee.total_fee, 'amount_paid': fee.amount_paid, 'balance': fee.balance, 'grade': fee.grade, 'term': fee.term, 'year': fee.year} if fee else None
-        return render_template('student_view_results.html', form=form, marks=marks, fee=fee, student_grade=student_grade, term_info=term_info, content_data=content_data)
+
+        return render_template(
+            'student_view_results.html',
+            form=form,
+            marks=marks,
+            fee=fee,
+            student={'admission_no': admission_no, 'name': student_name, 'grade': student_grade},
+            term_info=term_info,
+            content_data=content_data,
+            parent_view=parent_view
+        )
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error(f"Database error in student_view_results for admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('Database error: Unable to retrieve results. Please try again later.', 'danger')
+        return render_template(
+            'student_view_results.html',
+            form=form,
+            marks=[],
+            fee=None,
+            student={'admission_no': admission_no or '', 'name': student_name or '', 'grade': student_grade or ''},
+            term_info=term_info,
+            content_data=content_data,
+            parent_view=parent_view
+        )
     except Exception as e:
-        logger.error(f"Error in student_view_results: {str(e)}\n{traceback.format_exc()}")
-        flash(f'Error: {str(e)}', 'danger')
-        return render_template('student_view_results.html', form=form, marks=[], fee=None, student_grade='', term_info=term_info, content_data=content_data)
+        db_session.rollback()
+        logger.error(f"Unexpected error in student_view_results for admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('An unexpected error occurred. Please try again later.', 'danger')
+        return render_template(
+            'student_view_results.html',
+            form=form,
+            marks=[],
+            fee=None,
+            student={'admission_no': admission_no or '', 'name': student_name or '', 'grade': student_grade or ''},
+            term_info=term_info,
+            content_data=content_data,
+            parent_view=parent_view
+        )
     finally:
         db_session.close()
-        
         
         
 @app.route('/parent/view_student', methods=['POST'])
@@ -3324,199 +3887,196 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank, tot
     p.save()
     buffer.seek(0)
     return buffer
-@app.route('/student/download_report_card', methods=['GET', 'POST'])
+from flask import render_template, request, flash, redirect, url_for, send_file
+from flask_login import login_required, current_user
+from datetime import datetime
+import logging
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
+import traceback
+
+logger = logging.getLogger(__name__)
+
+
+
+@app.route('/student_download_report_card', methods=['GET', 'POST'])
 @login_required
-def student_download_report_card():
+def student_download_report_card(admission_no=None, grade=None, term=None, year=None, exam_type=None):
     """Download report card for a student as PDF, accessible by both parents and students."""
     db_session = next(get_db())
     try:
-        # Fetch term_info
-        term_data = db_session.query(TermInfo).filter_by(id=1).first()
-        term_info = {
-            'term': term_data.term if term_data and term_data.term else 'Term 1',
-            'year': term_data.year if term_data and term_data.year else '2025',
-            'principal': term_data.principal if term_data and term_data.principal else 'Mr. Principal',
-            'start_date': term_data.start_date if term_data and term_data.start_date else '2025-01-01',
-            'end_date': term_data.end_date if term_data and term_data.end_date else '2025-04-01'
-        }
+        # Validate user role
+        if current_user.role not in ['student', 'parent']:
+            logger.error(f"Unauthorized role {current_user.role} for user {current_user.id}")
+            flash('You are not authorized to access this page.', 'danger')
+            return redirect(url_for('index'))
 
-        # Determine user role and admission_no
-        if current_user.role == 'parent':
-            # For parents, admission_no comes from form and must be linked
-            form = ReportCardForm()
-            linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
-                join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
-                filter(ParentStudent.parent_id == current_user.id).all()
-            form.admission_no.choices = [
-                (s.admission_no, f"{s.name} ({s.admission_no})")
-                for s in linked_students
-            ] if linked_students else []
-            if not linked_students:
-                logger.warning(f"No linked students found for parent_id: {current_user.id}")
-                flash('No linked students found. Please link a student.', 'error')
-                return redirect(url_for('parent_dashboard'))
-            admission_no = form.admission_no.data if form.validate_on_submit() else request.args.get('admission_no')
+        # Determine admission number and validate access
+        parent_view = False
+        if current_user.role == 'student':
+            if admission_no and admission_no != current_user.admission_no:
+                logger.warning(f"Student {current_user.id} attempted to access report card for admission_no={admission_no}")
+                flash('You can only download your own report card.', 'danger')
+                return redirect(url_for('student_dashboard'))
+            admission_no = current_user.admission_no
+        elif current_user.role == 'parent':
             if not admission_no:
-                logger.warning(f"No admission_no provided for parent_id: {current_user.id}")
-                flash('Please select a student to download their report card.', 'error')
+                logger.warning(f"Parent {current_user.id} accessed /student_download_report_card without admission_no")
+                flash('Please select a linked student.', 'danger')
                 return redirect(url_for('parent_dashboard'))
-            # Verify the parent-student link
             parent_student = db_session.query(ParentStudent).filter_by(
                 parent_id=current_user.id,
                 admission_no=admission_no
             ).first()
             if not parent_student:
-                logger.warning(f"Parent {current_user.id} not linked to admission_no: {admission_no}")
-                flash('You are not authorized to view this student’s report card.', 'error')
+                logger.warning(f"Parent {current_user.id} not linked to admission_no={admission_no}")
+                flash('You are not authorized to view this student’s report card.', 'danger')
                 return redirect(url_for('parent_dashboard'))
-            student = db_session.query(Student.name, Student.grade).filter_by(admission_no=admission_no).first()
-            if not student:
-                logger.error(f"Student not found: {admission_no}")
-                flash('Student not found. Please contact the administrator.', 'error')
-                return redirect(url_for('parent_dashboard'))
-            name, grade = student
-        elif current_user.role == 'student':
-            # For students, use current_user.admission_no
-            admission_no = getattr(current_user, 'admission_no', None)
-            if not admission_no:
-                logger.error(f"No admission number for user {current_user.id}")
-                flash('No admission number associated with your account. Please contact the administrator.', 'error')
-                return redirect(url_for('student_dashboard'))
-            student = db_session.query(Student.name, Student.grade).filter_by(admission_no=admission_no).first()
-            if not student:
-                logger.error(f"Student not found: {admission_no}")
-                flash('Student account not found. Please contact the administrator.', 'error')
-                return redirect(url_for('student_dashboard'))
-            name, grade = student
-            form = ReportCardForm(admission_no=admission_no, grade=grade)
-            form.admission_no.choices = [(admission_no, f"{name} ({admission_no})")]
-            form.grade.choices = [(grade, grade)]
-        else:
-            logger.error(f"Unauthorized role {current_user.role} for user {current_user.id}")
-            flash('You are not authorized to access this page.', 'error')
-            return redirect(url_for('index'))
+            parent_view = True
 
-        # Fetch available terms and exam types for the student's grade
-        terms = db_session.query(func.distinct(Marks.term)).filter(
-            func.lower(Marks.grade) == grade.lower()
-        ).order_by(Marks.term).all()
-        terms = [(t[0], t[0]) for t in terms if t[0]] or [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
+        # Fetch student data
+        student = db_session.query(Student).filter_by(admission_no=admission_no).first()
+        if not student:
+            logger.warning(f"No student found for admission_no={admission_no}")
+            flash('Student profile not found.', 'danger')
+            return redirect(url_for('logout' if current_user.role == 'student' else 'parent_dashboard'))
 
-        exam_types = db_session.query(func.distinct(Marks.exam_type)).filter(
-            func.lower(Marks.grade) == grade.lower()
-        ).order_by(Marks.exam_type).all()
-        exam_types = [(et[0], et[0].replace('cat1', 'CAT 1').replace('cat2', 'CAT 2').replace('cat3', 'CAT 3')
-                           .replace('rat1', 'RAT 1').replace('rat2', 'RAT 2').replace('rat3', 'RAT 3')
-                           .replace('midterm', 'Mid Term').replace('endterm', 'End Term')
-                           .replace('project1', 'Project 1').replace('project2', 'Project 2').replace('project3', 'Project 3'))
-                      for et in exam_types if et[0]] or [('endterm', 'End Term'), ('midterm', 'Mid Term')]
+        # Fetch term info for default values
+        term_data = db_session.query(TermInfo).filter_by(id=1).first()
+        default_term = term_data.term if term_data and term_data.term else 'Term 1'
+        default_year = term_data.year if term_data and term_data.year else str(datetime.now().year)
+        default_exam_type = 'endterm'
 
-        form.term.choices = terms
-        form.exam_type.choices = exam_types
+        # Fetch marks for display in the template
+        marks = db_session.query(Marks).filter_by(admission_no=admission_no).order_by(Marks.year.desc(), Marks.term.desc()).all()
+        marks_data = [{
+            'learning_area': mark.learning_area,
+            'marks': mark.total_marks,
+            'exam_type': mark.exam_type,
+            'total_marks': mark.total_marks,
+            'term': mark.term,
+            'year': mark.year,
+            'grade': mark.grade
+        } for mark in marks]
 
-        if request.method == 'POST' and form.validate_on_submit():
-            term = form.term.data.strip()
-            year = str(form.year.data).strip()
-            exam_type = form.exam_type.data.strip()
+        # Initialize form
+        report_form = ReportCardForm(
+            admission_no=admission_no,
+            grade=student.grade,
+            term=default_term,
+            year=int(default_year) if default_year.isdigit() else datetime.now().year,
+            exam_type=default_exam_type
+        )
 
-            # Validate year
-            if not (year.isdigit() and len(year) == 4):
-                logger.error(f"Invalid year input: {year}")
-                flash('Please enter a valid four-digit year.', 'error')
-                return redirect(url_for('student_download_report_card'))
+        # Set form choices
+        report_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
+        report_form.grade.choices = [(g[0], g[1]) for g in GRADES if g[0] != 'all']  # Exclude 'all' for students/parents
+        report_form.term.choices = TERMS
+        report_form.exam_type.choices = EXAM_TYPES
 
-            # Check if marks exist for the selected criteria
-            marks_exist = db_session.query(Marks).filter(
-                func.lower(Marks.admission_no) == admission_no.lower(),
-                func.lower(Marks.grade) == grade.lower(),
-                func.lower(Marks.term) == term.lower(),
-                Marks.year == year,
-                func.lower(Marks.exam_type) == exam_type.lower()
-            ).count() > 0
+        # Handle form submission
+        if request.method == 'POST' and report_form.validate_on_submit():
+            admission_no = report_form.admission_no.data
+            grade = report_form.grade.data
+            term = report_form.term.data
+            year = str(report_form.year.data)
+            exam_type = report_form.exam_type.data
 
-            if not marks_exist:
-                logger.warning(f"No marks found for {admission_no}, grade={grade}, term={term}, year={year}, exam_type={exam_type}")
-                flash(f"No marks available for {term} {year} ({exam_type.replace('cat1', 'CAT 1').replace('cat2', 'CAT 2').replace('cat3', 'CAT 3').replace('rat1', 'RAT 1').replace('rat2', 'RAT 2').replace('rat3', 'RAT 3').replace('midterm', 'Mid Term').replace('endterm', 'End Term').replace('project1', 'Project 1').replace('project2', 'Project 2').replace('project3', 'Project 3')}). Please contact your teacher.", 'error')
-                return redirect(url_for('student_download_report_card'))
+            logger.debug(f"Form submitted: admission_no={admission_no}, grade={grade}, term={term}, year={year}, exam_type={exam_type}")
 
-            # Generate the report card
+            # Generate report card
             pdf_buffer = generate_individual_report_card(admission_no, term, year, exam_type)
-            if pdf_buffer is None:
-                logger.error(f"Failed to generate report card for {admission_no}, term={term}, year={year}, exam_type={exam_type}")
-                flash('Error generating report card. Please try again later or contact the administrator.', 'error')
-                return redirect(url_for('student_download_report_card'))
+            if not pdf_buffer:
+                logger.error(f"Failed to generate report card for admission_no={admission_no}")
+                flash('Unable to generate report card. Please try again or contact support.', 'danger')
+                return redirect(url_for('student_dashboard'))
 
-            pdf_buffer.seek(0)
+            # Prepare response
             filename = f"Report_Card_{admission_no}_{grade.replace(' ', '_')}_{term}_{year}_{exam_type}.pdf"
-            logger.info(f"Report card generated for {admission_no}, size: {len(pdf_buffer.getvalue())} bytes")
-            return send_file(
-                pdf_buffer,
-                as_attachment=True,
-                download_name=filename,
-                mimetype='application/pdf'
+            response = Response(
+                pdf_buffer.getvalue(),
+                mimetype='application/pdf',
+                headers={
+                    'Content-Disposition': f'attachment; filename={filename}',
+                    'Content-Length': len(pdf_buffer.getvalue())
+                }
             )
-        else:
-            # Default to term and year from TermInfo, or fallback
-            term = term_info['term']
-            year = term_info['year']
-            exam_type = 'endterm'
-            form.term.data = term
-            form.year.data = int(year) if year.isdigit() else 2025
-            form.exam_type.data = exam_type
+            pdf_buffer.close()
+            logger.info(f"Report card downloaded for admission_no={admission_no}, filename={filename}")
+            return response
+        elif request.method == 'POST':
+            # Log form errors
+            for field, errors in report_form.errors.items():
+                for error in errors:
+                    logger.error(f"ReportCardForm error in {field}: {error}, submitted value: {request.form.get(field, 'None')}")
+                    flash(f"Form error: {error}", 'danger')
 
-            # Check if marks exist for default criteria
-            marks_exist = db_session.query(Marks).filter(
-                func.lower(Marks.admission_no) == admission_no.lower(),
-                func.lower(Marks.grade) == grade.lower(),
-                func.lower(Marks.term) == term.lower(),
-                Marks.year == year,
-                func.lower(Marks.exam_type) == exam_type.lower()
-            ).count() > 0
+        # Fetch recent announcements for display
+        recent_announcements = db_session.query(Announcements).order_by(Announcements.date.desc()).limit(5).all()
+        recent_announcements = [{'content': a.content, 'date': a.date} for a in recent_announcements]
 
-            if not marks_exist:
-                logger.warning(f"No marks found for default criteria: {admission_no}, grade={grade}, term={term}, year={year}, exam_type={exam_type}")
-                flash(f"No marks available for {term} {year} ({exam_type.replace('cat1', 'CAT 1').replace('cat2', 'CAT 2').replace('cat3', 'CAT 3').replace('rat1', 'RAT 1').replace('rat2', 'RAT 2').replace('rat3', 'RAT 3').replace('midterm', 'Mid Term').replace('endterm', 'End Term').replace('project1', 'Project 1').replace('project2', 'Project 2').replace('project3', 'Project 3')}). Please select a different term or contact your teacher.", 'error')
-                return redirect(url_for('student_download_report_card'))
-
-        # Render the form for GET requests
+        # Render form template for GET request
+        student_data = {
+            'admission_no': student.admission_no,
+            'name': student.name,
+            'grade': student.grade
+        }
         return render_template(
             'student_download_report_card.html',
-            form=form,
-            term_info=term_info,
-            student={'name': name, 'admission_no': admission_no, 'grade': grade}
+            form=report_form,
+            student=student_data,
+            marks=marks_data,
+            recent_announcements=recent_announcements,
+            parent_view=parent_view
         )
+
     except SQLAlchemyError as e:
-        logger.error(f"Database error for admission_no={admission_no or 'unknown'}: {str(e)}\n{traceback.format_exc()}")
-        flash('Database error: Unable to fetch report card data. Please try again later.', 'error')
-        return redirect(url_for('parent_dashboard' if current_user.role == 'parent' else 'student_dashboard'))
+        db_session.rollback()
+        logger.error(f"Database error in student_download_report_card for admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('Database error: Unable to process request. Please try again later.', 'danger')
+        return redirect(url_for('student_dashboard'))
     except Exception as e:
-        logger.error(f"Unexpected error in student_download_report_card: {str(e)}\n{traceback.format_exc()}")
-        flash('An unexpected error occurred. Please try again later.', 'error')
-        return redirect(url_for('parent_dashboard' if current_user.role == 'parent' else 'student_dashboard'))
+        db_session.rollback()
+        logger.error(f"Unexpected error in student_download_report_card for admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
+        flash('An unexpected error occurred. Please try again later.', 'danger')
+        return redirect(url_for('student_dashboard'))
     finally:
         db_session.close()
-
         
         
         
-def get_learning_areas(grade, db_session):
-    """Fetch learning areas for a specific grade from the LearningAreas table."""
+def get_learning_areas(grade, db_session=None):
     try:
-        if db_session is None:
-            logger.error("No valid db_session provided to get_learning_areas")
-            return []
-        if not isinstance(grade, str):
-            logger.warning(f"Invalid grade type in get_learning_areas: {type(grade)}, value={grade}")
-            grade = str(grade) if grade is not None else ''
-        learning_areas = db_session.query(LearningAreas.name).filter(
-            func.lower(LearningAreas.grade) == grade.lower().strip() if grade else True
-        ).order_by(LearningAreas.name).all()
-        areas = [la[0].strip() for la in learning_areas]
-        logger.debug(f"Fetched learning areas for grade {grade}: {areas}")
-        return areas
-    except Exception as e:
-        logger.error(f"Error fetching learning areas for grade {grade}: {str(e)}\n{traceback.format_exc()}")
-        return []
+        if not isinstance(grade, str) or not grade.strip():
+            logger.warning(f"Invalid grade for learning areas: {grade}")
+            return [
+                'Mathematics', 'English', 'Kiswahili', 'Integrated Science', 'Pre-technical',
+                'Social Studies', 'Agriculture and Nutrition', 'Creative Arts', 'CRE'
+            ]
+        grade = grade.strip()
+        db_session = db_session or next(get_db())
+        try:
+            learning_areas = db_session.query(Marks.learning_area).filter(
+                func.lower(Marks.grade) == grade.lower()
+            ).distinct().order_by(Marks.learning_area).all()
+            areas = [la[0].strip() for la in learning_areas if la[0] and isinstance(la[0], str)]
+            if not areas:
+                logger.warning(f"No learning areas found in Marks for grade {grade}. Using default list.")
+                areas = [
+                    'Mathematics', 'English', 'Kiswahili', 'Integrated Science', 'Pre-technical',
+                    'Social Studies', 'Agriculture and Nutrition', 'Creative Arts', 'CRE'
+                ]
+            logger.debug(f"Learning areas for grade {grade}: {areas}")
+            return areas
+        finally:
+            if db_session and not hasattr(db_session, 'is_closed') or not db_session.is_closed:
+                db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching learning areas for grade {grade}: {str(e)}")
+        return [
+            'Mathematics', 'English', 'Kiswahili', 'Integrated Science', 'Pre-technical',
+            'Social Studies', 'Agriculture and Nutrition', 'Creative Arts', 'CRE'
+        ]
 
 
 def generate_excel_results(students, marks, fees, payment_history, grade, term=None, year=None, exam_type=None):
@@ -3730,189 +4290,319 @@ def download_results():
         db_session.close()
 
 # Helper functions for report card enhancements
-def get_performance_level(marks, context, db_session):
-    """Fetch performance level, points, and comment from PerformanceLevels table."""
+def get_performance_levels(marks, type_='learning_area'):
+    """Determine performance level based on marks and type."""
     try:
-        if marks is None or not isinstance(marks, (int, float)) or marks < 0:
-            logger.debug(f"Invalid marks for context={context}: {marks}")
-            return 'N/A', 0.0, 'No valid marks provided.'
+        if not isinstance(marks, (int, float)) or marks < 0 or marks > 100:
+            logger.warning(f"Invalid marks for performance level: {marks}, type={type_}")
+            return 'N/A'
         marks = float(marks)
-        level_record = db_session.query(PerformanceLevels).filter(
-            PerformanceLevels.min_marks <= marks,
-            PerformanceLevels.max_marks >= marks,
-            PerformanceLevels.type == context
-        ).first()
-        if level_record:
-            logger.debug(f"Performance level found for marks={marks}, context={context}: {level_record.level}")
-            return level_record.level, level_record.points, level_record.comment
-        logger.warning(f"No performance level found for marks={marks}, context={context}")
-        return 'N/A', 0.0, 'No performance level defined.'
-    except Exception as e:
-        logger.error(f"Error in get_performance_level for marks={marks}, context={context}: {str(e)}")
-        return 'N/A', 0.0, 'Error retrieving performance level.'
+        if type_ in ('learning_area', 'class_teacher', 'principal'):
+            if marks >= 90:
+                return 'EE1'
+            elif marks >= 80:
+                return 'EE2'
+            elif marks >= 70:
+                return 'ME1'
+            elif marks >= 60:
+                return 'ME2'
+            elif marks >= 50:
+                return 'AE1'
+            else:
+                return 'AE2'
+        logger.warning(f"Invalid type for performance level: {type_}")
+        return 'N/A'
+    except (ValueError, TypeError) as e:
+        logger.error(f"Error in get_performance_levels: marks={marks}, type={type_}, error={str(e)}")
+        return 'N/A'
 
-def get_teacher_name(learning_area, grade, db_session):
-    """Get teacher name for a learning area and grade from TeacherAssignments."""
+def get_points(marks, type_='learning_area'):
+    """Calculate points based on marks."""
     try:
-        if not learning_area or not grade:
-            logger.debug(f"Invalid input: learning_area={learning_area}, grade={grade}")
+        if not isinstance(marks, (int, float)) or marks < 0 or marks > 100:
+            logger.warning(f"Invalid marks for points calculation: {marks}, type={type_}")
+            return 0.0
+        marks = float(marks)
+        if type_ in ('learning_area', 'class_teacher', 'principal'):
+            if marks >= 90:
+                return 4.0  # EE1
+            elif marks >= 80:
+                return 3.5  # EE2
+            elif marks >= 70:
+                return 3.0  # ME1
+            elif marks >= 60:
+                return 2.5  # ME2
+            elif marks >= 50:
+                return 2.0  # AE1
+            else:
+                return 1.0  # AE2
+        logger.warning(f"Invalid type for points calculation: {type_}")
+        return 0.0
+    except (ValueError, TypeError) as e:
+        logger.error(f"Error in get_points: marks={marks}, type={type_}, error={str(e)}")
+        return 0.0
+
+def get_teacher_comment(level):
+    """Return teacher comment based on performance levels."""
+    comments = {
+        'EE1': 'Outstanding performance! Keep it up.',
+        'EE2': 'Excellent work, consistently strong.',
+        'ME1': 'Good effort, meets expectations.',
+        'ME2': 'Satisfactory, room for improvement.',
+        'AE1': 'Approaching expectations, needs more focus.',
+        'AE2': 'Below expectations, seek extra support.',
+        'N/A': 'No performance data available.'
+    }
+    comment = comments.get(level, 'No performance data available.')
+    logger.debug(f"Teacher comment for level {level}: {comment}")
+    return comment
+
+def get_class_teacher_comment(total_marks, grade):
+    """Generate class teacher comment based on total marks."""
+    try:
+        if not isinstance(grade, str) or not grade.strip() or not isinstance(total_marks, (int, float)) or total_marks <= 0:
+            logger.warning(f"Invalid inputs for class teacher comment: total_marks={total_marks}, grade={grade}")
+            return 'No performance data available.'
+        level = get_performance_levels(total_marks, 'class_teacher')
+        comment = get_teacher_comment(level)
+        logger.debug(f"Class teacher comment for total_marks={total_marks}, grade={grade}: {comment}")
+        return comment
+    except Exception as e:
+        logger.error(f"Error fetching class teacher comment: total_marks={total_marks}, grade={grade}, error={str(e)}")
+        return 'No performance data available.'
+
+def get_principal_comment(total_marks):
+    """Generate principal comment based on total marks."""
+    try:
+        if not isinstance(total_marks, (int, float)) or total_marks <= 0:
+            logger.warning(f"Invalid total_marks for principal comment: {total_marks}")
+            return 'No performance data available.'
+        level = get_performance_levels(total_marks, 'principal')
+        comment = get_teacher_comment(level)
+        logger.debug(f"Principal comment for total_marks={total_marks}: {comment}")
+        return comment
+    except Exception as e:
+        logger.error(f"Error fetching principal comment: total_marks={total_marks}, error={str(e)}")
+        return 'No performance data available.'
+
+def get_teacher_name(learning_area, grade):
+    """Fetch teacher name for a learning area and grade."""
+    try:
+        if not isinstance(learning_area, str) or not isinstance(grade, str) or not learning_area.strip() or not grade.strip():
+            logger.warning(f"Invalid input: learning_area={learning_area}, grade={grade}")
             return 'Unknown Teacher'
-        assignment = db_session.query(TeacherAssignments, User).join(
-            User, TeacherAssignments.teacher_id == User.id
-        ).filter(
-            func.lower(TeacherAssignments.learning_area) == learning_area.lower().strip(),
-            func.lower(TeacherAssignments.grade) == grade.lower().strip()
-        ).first()
-        if assignment:
-            logger.debug(f"Teacher found for {learning_area}, {grade}: {assignment.User.username}")
-            return assignment.User.username
-        logger.warning(f"No teacher assigned for {learning_area}, {grade}")
-        return 'Unknown Teacher'
-    except Exception as e:
-        logger.error(f"Error in get_teacher_name for {learning_area}, {grade}: {str(e)}")
+        learning_area = learning_area.strip()
+        grade = grade.strip()
+        db_session = next(get_db())
+        try:
+            teacher = db_session.query(User.username).join(
+                TeacherAssignments, User.id == TeacherAssignments.teacher_id
+            ).filter(
+                func.lower(TeacherAssignments.learning_area) == learning_area.lower(),
+                func.lower(TeacherAssignments.grade) == grade.lower()
+            ).first()
+            teacher_name = teacher[0].strip() if teacher and teacher[0] else 'Unknown Teacher'
+            logger.debug(f"Teacher for {learning_area}, {grade}: {teacher_name}")
+            return teacher_name
+        finally:
+            db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching teacher for {learning_area}, {grade}: {str(e)}")
         return 'Unknown Teacher'
 
-def get_class_teacher_name(grade, db_session):
-    """Get class teacher name for a grade from ClassTeachers."""
+def get_class_teacher_name(student_grade):
+    """Fetch class teacher name for a grade."""
     try:
-        class_teacher = db_session.query(ClassTeachers, User).join(
-            User, ClassTeachers.teacher_id == User.id
-        ).filter(
-            func.lower(ClassTeachers.grade) == grade.lower().strip()
-        ).first()
-        return class_teacher.User.username if class_teacher else 'Unknown Class Teacher'
-    except Exception as e:
-        logger.error(f"Error in get_class_teacher_name for {grade}: {str(e)}")
+        if not isinstance(grade, str) or not grade.strip():
+            logger.warning(f"Invalid grade: {grade}")
+            return 'Unknown Class Teacher'
+        grade = grade.strip()
+        db_session = next(get_db())
+        try:
+            teacher = db_session.query(User.username).join(
+                ClassTeachers, User.id == ClassTeachers.teacher_id
+            ).filter(
+                func.lower(ClassTeachers.grade) == grade.lower()
+            ).first()
+            teacher_name = teacher[0].strip() if teacher and teacher[0] else 'Unknown Class Teacher'
+            logger.debug(f"Class teacher for grade {grade}: {teacher_name}")
+            return teacher_name
+        finally:
+            db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching class teacher for {grade}: {str(e)}")
         return 'Unknown Class Teacher'
 
-def get_principal_name(db_session):
-    """Get principal's name from TermInfo."""
-    try:
-        term_info = db_session.query(TermInfo).first()
-        return term_info.principal if term_info else 'Mr. Principal'
-    except Exception as e:
-        logger.error(f"Error in get_principal_name: {str(e)}")
-        return 'Mr. Principal'
-
-def fetch_content_data(db_session):
-    """Fetch mission, vision, and about content."""
-    try:
-        mission = db_session.query(Mission).first()
-        vision = db_session.query(Vision).first()
-        about = db_session.query(About).first()
-        content_data = {
-            'mission': mission.content if mission else "To provide quality education for all students",
-            'vision': vision.content if vision else "To be a leading institution in academic excellence",
-            'about': about.content if about else "Jonyo Junior School is dedicated to fostering holistic education"
-        }
-        logger.debug(f"Content data fetched: {content_data}")
-        return content_data
-    except Exception as e:
-        logger.error(f"Error fetching content data: {str(e)}")
-        return {
-            'mission': "To provide quality education for all students",
-            'vision': "To be a leading institution in academic excellence",
-            'about': "Jonyo Junior School is dedicated to fostering holistic education"
-        }
-
-def fetch_common_data():
-    """Fetch term and content data for report cards."""
+def get_principal_name():
+    """Fetch principal name from TermInfo."""
     try:
         db_session = next(get_db())
-        term_data = db_session.query(TermInfo).first()
-        term_info = {
-            'term': term_data.term if term_data and term_data.term else 'Term 1',
-            'year': term_data.year if term_data and term_data.year else '2025',
-            'principal': term_data.principal if term_data and term_data.principal else get_principal_name(db_session),
-            'start_date': term_data.start_date if term_data and term_data.start_date else '2025-01-01',
-            'end_date': term_data.end_date if term_data and term_data.end_date else '2025-04-01'
-        }
-        content_data = fetch_content_data(db_session)
-        logger.debug(f"Fetched term_info: {term_info}, content_data: {content_data}")
-        return term_info, content_data
-    except Exception as e:
-        logger.error(f"Error in fetch_common_data: {str(e)}")
-        return {
-            'term': 'Term 1',
-            'year': '2025',
-            'principal': 'Mr. Principal',
-            'start_date': '2025-01-01',
-            'end_date': '2025-04-01'
-        }, {
-            'mission': "To provide quality education for all students",
-            'vision': "To be a leading institution in academic excellence",
-            'about': "Jonyo Junior School is dedicated to fostering holistic education"
-        }
-    finally:
-        if 'db_session' in locals():
+        try:
+            principal = db_session.query(TermInfo.principal).filter_by(id=1).first()
+            principal_name = principal[0].strip() if principal and principal[0] else 'School Principal'
+            logger.debug(f"Principal name: {principal_name}")
+            return principal_name
+        finally:
             db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching principal name: {str(e)}")
+        return 'School Principal'
 
-def generate_report_card(students, marks, fees, term, year, exam_type, rank=None, total_students=None, grade=None, term_info=None, db_session=None):
-    """Generate a PDF report card for multiple students with all required details."""
+def get_rank(admission_no, grade, term, year, exam_type):
+    """Calculate student rank based on total marks."""
+    try:
+        if not all(isinstance(x, str) for x in [admission_no, grade, term, exam_type, year]):
+            logger.warning(f"Invalid inputs for rank: admission_no={admission_no}, grade={grade}, term={term}, year={year}, exam_type={exam_type}")
+            return 'N/A'
+        admission_no = admission_no.strip().lower()
+        grade = grade.strip().lower()
+        term = term.strip().lower()
+        exam_type = exam_type.strip().lower()
+        year = year.strip()
+        db_session = next(get_db())
+        try:
+            ranks = db_session.query(
+                Marks.admission_no,
+                func.sum(Marks.total_marks).label('total')
+            ).filter(
+                func.lower(Marks.grade) == grade,
+                func.lower(Marks.term) == term,
+                Marks.year == year,
+                func.lower(Marks.exam_type) == exam_type,
+                Marks.total_marks.isnot(None),
+                Marks.total_marks >= 0,
+                Marks.total_marks <= 100
+            ).group_by(Marks.admission_no).order_by(func.sum(Marks.total_marks).desc()).all()
+            rank_list = [r[0].strip().lower() for r in ranks]
+            rank = rank_list.index(admission_no) + 1 if admission_no in rank_list else 'N/A'
+            logger.debug(f"Rank for {admission_no} in {grade}, {term}, {year}, {exam_type}: {rank}")
+            return str(rank)
+        finally:
+            db_session.close()
+    except (SQLAlchemyError, ValueError) as e:
+        logger.error(f"Error calculating rank for {admission_no}: {str(e)}")
+        return 'N/A'
+
+def get_total_fee(admission_no):
+    """Fetch total fee for a student for the latest term."""
+    try:
+        if not isinstance(admission_no, str) or not admission_no.strip():
+            logger.warning(f"Invalid admission_no: {admission_no}")
+            return 0.0
+        admission_no = admission_no.strip().lower()
+        db_session = next(get_db())
+        try:
+            fee = db_session.query(Fee.total_fee).filter(
+                func.lower(Fee.admission_no) == admission_no
+            ).order_by(Fee.term.desc()).first()
+            total_fee = float(fee[0]) if fee and fee[0] is not None else 0.0
+            logger.debug(f"Total fee for {admission_no}: {total_fee}")
+            return total_fee
+        finally:
+            db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching total fee for {admission_no}: {str(e)}")
+        return 0.0
+
+def get_amount_paid(admission_no):
+    """Fetch amount paid for a student for the latest term."""
+    try:
+        if not isinstance(admission_no, str) or not admission_no.strip():
+            logger.warning(f"Invalid admission_no: {admission_no}")
+            return 0.0
+        admission_no = admission_no.strip().lower()
+        db_session = next(get_db())
+        try:
+            paid = db_session.query(Fee.amount_paid).filter(
+                func.lower(Fee.admission_no) == admission_no
+            ).order_by(Fee.term.desc()).first()
+            amount_paid = float(paid[0]) if paid and paid[0] is not None else 0.0
+            logger.debug(f"Amount paid for {admission_no}: {amount_paid}")
+            return amount_paid
+        finally:
+            db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching amount paid for {admission_no}: {str(e)}")
+        return 0.0
+
+def get_balance(admission_no):
+    """Fetch fee balance for a student for the latest term."""
+    try:
+        if not isinstance(admission_no, str) or not admission_no.strip():
+            logger.warning(f"Invalid admission_no: {admission_no}")
+            return 0.0
+        admission_no = admission_no.strip().lower()
+        db_session = next(get_db())
+        try:
+            balance = db_session.query(Fee.balance).filter(
+                func.lower(Fee.admission_no) == admission_no
+            ).order_by(Fee.term.desc()).first()
+            fee_balance = float(balance[0]) if balance and balance[0] is not None else 0.0
+            logger.debug(f"Balance for {admission_no}: {fee_balance}")
+            return fee_balance
+        finally:
+            db_session.close()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching balance for {admission_no}: {str(e)}")
+        return 0.0
+
+
+def generate_report_card(students, marks, fees, term, year, exam_type, rank=None, total_students=None, grade=None, term_info=None):
+    """Generate a PDF report card for multiple students."""
     try:
         buffer = io.BytesIO()
         c = canvas.Canvas(buffer, pagesize=letter)
         processed_students = set()
         has_valid_content = False
 
-        # Validate inputs
-        if not isinstance(students, (list, tuple)) or not students:
-            logger.error(f"Invalid or empty students data: {type(students)}, count={len(students)}")
-            c.setFont("Helvetica", 12)
-            c.drawString(50, 700, "No valid student data provided.")
-            c.showPage()
-            c.save()
-            buffer.seek(0)
-            return buffer
+        if not isinstance(students, (list, tuple)):
+            logger.error(f"Invalid students type: {type(students)}")
+            raise ValueError("Students must be a list or tuple")
         if not isinstance(marks, (list, tuple)):
             logger.error(f"Invalid marks type: {type(marks)}")
-            marks = []
+            raise ValueError("Marks must be a list or tuple")
         if not isinstance(fees, (list, tuple)):
             logger.error(f"Invalid fees type: {type(fees)}")
-            fees = []
-        if not all(isinstance(x, str) and x.strip() for x in [term, year, exam_type] if x is not None):
-            logger.error(f"Invalid string inputs: term={term}, year={year}, exam_type={exam_type}")
-            c.setFont("Helvetica", 12)
-            c.drawString(50, 700, "Invalid term, year, or exam type provided.")
-            c.showPage()
-            c.save()
-            buffer.seek(0)
-            return buffer
+            raise ValueError("Fees must be a list or tuple")
+        if not all(isinstance(x, str) for x in [term, year, exam_type] if x is not None):
+            logger.error(f"Invalid string inputs: term={type(term)}, year={type(year)}, exam_type={type(exam_type)}")
+            raise ValueError("Term, year, and exam_type must be strings")
 
-        # Fetch learning areas dynamically
-        learning_areas = get_learning_areas(grade, db_session) if grade else []
-        if not learning_areas:
-            logger.warning(f"No learning areas found for grade {grade}. Using default list.")
-            learning_areas = [
-                'Mathematics', 'English', 'Kiswahili', 'Integrated Science', 'Pre-technical',
-                'Social Studies', 'Agriculture and Nutrition', 'Creative Arts', 'CRE'
-            ]
+        term = term.strip().lower()
+        year = year.strip()
+        exam_type = exam_type.strip().lower().replace('cat 1', 'cat1').replace('cat 2', 'cat2').replace('cat 3', 'cat3') \
+            .replace('rat 1', 'rat1').replace('rat 2', 'rat2').replace('rat 3', 'rat3') \
+            .replace('mid term', 'midterm').replace('end term', 'endterm') \
+            .replace('project 1', 'project1').replace('project 2', 'project2').replace('project 3', 'project3')
+        grade = grade.strip().lower() if grade else None
 
-        # Fetch content data
-        content_data = fetch_content_data(db_session)
-
-        # Validate term_info
         term_info = term_info or {
-            'term': term or 'Term 1',
-            'year': year or '2025',
-            'principal': get_principal_name(db_session),
+            'term': term.capitalize(),
+            'year': year,
+            'principal': get_principal_name(),
             'start_date': '2025-01-01',
             'end_date': '2025-04-01'
         }
 
-        logger.debug(f"Processing students: {len(students)} students, {len(marks)} marks, {len(fees)} fees, term={term}, year={year}, exam_type={exam_type}, grade={grade}, learning_areas={learning_areas}")
+        # Fetch learning areas
+        learning_areas = get_learning_areas(grade) if grade else [
+            'Mathematics', 'English', 'Kiswahili', 'Integrated Science', 'Pre-technical',
+            'Social Studies', 'Agriculture and Nutrition', 'Creative Arts', 'CRE'
+        ]
+        logger.debug(f"Learning areas for grade {grade}: {learning_areas}")
+
+        logger.debug(f"Processing students: {len(students)} students, {len(marks)} marks, term={term}, year={year}, exam_type={exam_type}, grade={grade}")
 
         for student in students:
             try:
-                # Extract student data
                 if isinstance(student, (list, tuple)) and len(student) >= 6:
-                    admission_no = str(student[5]).strip()
+                    admission_no = str(student[5]).strip().lower()
                     name = str(student[1]).strip()
-                    student_grade = str(student[4]).strip()
+                    student_grade = str(student[4]).strip().lower()
                 elif isinstance(student, dict):
-                    admission_no = str(student.get('admission_no', '')).strip()
+                    admission_no = str(student.get('admission_no', '')).strip().lower()
                     name = str(student.get('name', '')).strip()
-                    student_grade = str(student.get('grade', '')).strip()
+                    student_grade = str(student.get('grade', '')).strip().lower()
                 else:
                     logger.warning(f"Invalid student data: {student}")
                     continue
@@ -3920,134 +4610,85 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
                 if not all([admission_no, name, student_grade]):
                     logger.warning(f"Empty or invalid student data: admission_no={admission_no}, name={name}, grade={student_grade}")
                     continue
-                if grade and student_grade.lower() != grade.lower():
+                if grade and student_grade != grade:
                     logger.debug(f"Skipping student {admission_no} with grade {student_grade} (expected {grade})")
                     continue
                 if admission_no in processed_students:
                     logger.debug(f"Skipping duplicate admission_no: {admission_no}")
                     continue
 
+                student_marks = [
+                    m for m in marks
+                    if (isinstance(m, dict) and str(m.get('admission_no', '')).strip().lower() == admission_no) or
+                       (isinstance(m, (list, tuple)) and len(m) >= 3 and str(m[0]).strip().lower() == admission_no)
+                ]
+                logger.debug(f"Marks for {admission_no}: {len(student_marks)} entries: {[m[:3] for m in student_marks]}")
+
                 processed_students.add(admission_no)
                 has_valid_content = True
 
-                # Fetch student-specific marks (rely on marks_query filters, simplify filtering)
-                student_marks = [
-                    m for m in marks
-                    if (isinstance(m, dict) and str(m.get('admission_no', '')).strip().lower() == admission_no.lower()) or
-                       (isinstance(m, (list, tuple)) and len(m) >= 7 and str(m[0]).strip().lower() == admission_no.lower())
-                ]
-                logger.debug(f"Marks for {admission_no} in {grade}, {term}, {year}, {exam_type}: {len(student_marks)} entries: {[m[:3] if isinstance(m, (list, tuple)) else (m.get('admission_no'), m.get('learning_area'), m.get('marks')) for m in student_marks]}")
-
-                # Debug unmatched learning areas
-                matched_areas = {m[1].lower().strip() if isinstance(m, (list, tuple)) else m.get('learning_area', '').lower().strip() for m in student_marks}
-                unmatched_areas = [la for la in learning_areas if la.lower().strip() not in matched_areas]
-                if unmatched_areas:
-                    logger.debug(f"Unmatched learning areas for {admission_no}: {unmatched_areas}")
-
-                # Header with school metadata
+                # Header
                 c.setFont("Helvetica-Bold", 16)
-                c.drawCentredString(300, 780, "JONYO JUNIOR SECONDARY SCHOOL")
-                c.setFont("Helvetica", 12)
-                c.drawCentredString(300, 760, content_data['mission'])
-                c.drawCentredString(300, 740, content_data['vision'])
+                c.drawCentredString(300, 750, "JONYO JUNIOR SECONDARY SCHOOL")
                 c.setFont("Helvetica", 14)
-                c.drawCentredString(300, 720, "REPORT CARD")
+                c.drawCentredString(300, 730, "REPORT CARD")
                 c.setFont("Helvetica", 12)
                 c.drawString(50, 700, f"Name: {name}")
-                c.drawString(50, 680, f"Admission No: {admission_no}")
-                c.drawString(50, 660, f"Grade: {student_grade}")
+                c.drawString(50, 680, f"Admission No: {admission_no.upper()}")
+                c.drawString(50, 660, f"Grade: {student_grade.capitalize()}")
                 formatted_exam_type = exam_type.replace('cat1', 'CAT 1').replace('cat2', 'CAT 2').replace('cat3', 'CAT 3') \
                     .replace('rat1', 'RAT 1').replace('rat2', 'RAT 2').replace('rat3', 'RAT 3') \
                     .replace('midterm', 'Mid Term').replace('endterm', 'End Term') \
                     .replace('project1', 'Project 1').replace('project2', 'Project 2').replace('project3', 'Project 3')
-                c.drawString(50, 640, f"Term: {term} {year} ({formatted_exam_type})")
+                c.drawString(50, 640, f"Term: {term_info['term']} {year} ({formatted_exam_type})")
                 c.drawString(50, 620, f"School Year: {term_info['year']}")
-
-                # Check if no marks are found
-                if not student_marks:
-                    logger.warning(f"No marks found for {admission_no} in {grade}, {term}, {year}, {exam_type}")
-                    c.setFont("Helvetica", 12)
-                    c.drawString(50, 600, "No marks available for this student.")
-                    c.setFont("Helvetica", 10)
-                    c.drawString(30, 580, f"Total Marks: N/A")
-                    c.drawString(30, 560, f"Total Points: N/A")
-                    c.drawString(30, 540, f"Average Points: N/A")
-                    c.drawString(30, 520, f"Performance Level: N/A")
-                    c.drawString(30, 500, f"Total Fee: N/A")
-                    c.drawString(30, 480, f"Balance: N/A")
-                    c.drawString(30, 460, f"Class Teacher Comment: N/A")
-                    c.drawString(30, 440, f"Principal Comment: N/A")
-                    c.drawString(30, 420, f"Class Teacher: {get_class_teacher_name(student_grade, db_session)[:20] or 'N/A'}")
-                    c.drawString(30, 400, f"Principal: {get_principal_name(db_session)[:20] or 'N/A'}")
-                    c.drawString(30, 380, f"Start Date: {term_info['start_date']}")
-                    c.drawString(30, 360, f"End Date: {term_info['end_date']}")
-                    c.drawString(30, 340, "School Stamp: ____________________")
-                    c.setFont("Helvetica", 50)
-                    c.setFillColor(colors.grey, alpha=0.2)
-                    c.rotate(45)
-                    c.drawCentredString(400, 200, "JONYO JSS")
-                    c.rotate(-45)
-                    c.setFillColor(colors.black)
-                    c.showPage()
-                    continue
 
                 # Create table data
                 table_data = [['Learning Area', 'Marks', 'Perf. Level', 'Points', 'Teacher Comment', 'Teacher']]
                 total_marks = 0
                 total_points = 0
-                subjects_covered = set()
                 valid_subjects = 0
+                subjects_covered = set()
 
-                # Include all learning areas, even if no marks exist
                 for learning_area in learning_areas:
                     mark_found = False
+                    learning_area_normalized = learning_area.lower().strip()
                     for mark in student_marks:
-                        try:
-                            if isinstance(mark, dict):
-                                mark_learning_area = str(mark.get('learning_area', '')).strip()
-                                marks_value = float(mark.get('marks', 0) or 0) if mark.get('marks') is not None else None
-                            elif isinstance(mark, (list, tuple)) and len(mark) >= 7:
-                                mark_learning_area = str(mark[1]).strip()
-                                marks_value = float(mark[2] or 0) if mark[2] is not None else None
-                            else:
-                                logger.warning(f"Invalid mark data for {admission_no}: {mark}")
-                                continue
-
-                            if mark_learning_area.lower().strip() == learning_area.lower().strip() and mark_learning_area.lower() not in subjects_covered:
-                                marks_str = f"{int(marks_value)}" if marks_value is not None else '-'
-                                level, points, comment = get_performance_level(marks_value, 'learning_area', db_session)
-                                teacher = get_teacher_name(learning_area, student_grade, db_session)
-                                table_data.append([
-                                    learning_area,
-                                    marks_str,
-                                    level,
-                                    f"{points:.2f}" if points is not None else '0.00',
-                                    comment[:50] if comment else 'No comment',
-                                    teacher[:20] if teacher else 'N/A'
-                                ])
-                                total_marks += marks_value if marks_value is not None else 0
-                                total_points += float(points) if points is not None else 0
-                                subjects_covered.add(mark_learning_area.lower())
-                                mark_found = True
-                                valid_subjects += 1
-                                logger.debug(f"Processed mark for {admission_no}, {learning_area}: marks={marks_str}, level={level}, points={points}, comment={comment[:50]}, teacher={teacher}")
-                                break
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Error processing mark for {admission_no}, mark={mark}: {str(e)}")
-                            continue
+                        mark_learning_area = str(mark[1] if isinstance(mark, (list, tuple)) else mark.get('learning_area', '')).strip().lower()
+                        if mark_learning_area == learning_area_normalized and mark_learning_area not in subjects_covered:
+                            try:
+                                marks_value = float(mark[2] if isinstance(mark, (list, tuple)) else mark.get('total_marks', 0)) if (mark[2] if isinstance(mark, (list, tuple)) else mark.get('total_marks')) is not None else None
+                                if marks_value is not None and 0 <= marks_value <= 100:
+                                    total_marks += marks_value
+                                    points = get_points(marks_value, 'learning_area')
+                                    total_points += points
+                                    valid_subjects += 1
+                                    level = get_performance_levels(marks_value, 'learning_area')
+                                    table_data.append([
+                                        learning_area,
+                                        f"{int(marks_value)}",
+                                        level,
+                                        f"{points:.2f}",
+                                        get_teacher_comment(level)[:20],
+                                        get_teacher_name(learning_area, student_grade)[:20]
+                                    ])
+                                    subjects_covered.add(mark_learning_area)
+                                    mark_found = True
+                                    logger.debug(f"Processed mark for {admission_no}, {learning_area}: {marks_value}, Points: {points}, Level: {level}")
+                                else:
+                                    logger.warning(f"Invalid marks value {marks_value} for {admission_no}, {learning_area}")
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Error processing mark for {admission_no}, {learning_area}: {str(e)}")
                     if not mark_found:
-                        table_data.append([
-                            learning_area,
-                            '-',
-                            'N/A',
-                            '0.00',
-                            'No marks available',
-                            get_teacher_name(learning_area, student_grade, db_session)[:20] or 'N/A'
-                        ])
-                        logger.debug(f"No marks found for {admission_no}, {learning_area}")
+                        logger.debug(f"No marks found for {admission_no} in {learning_area}")
+                        table_data.append([learning_area, '-', 'N/A', '0.00', 'No marks available', 'Unknown Teacher'])
 
-                # Create and draw table
-                col_widths = [2.5*inch, 0.8*inch, 0.8*inch, 0.7*inch, 1.5*inch, 1.2*inch]
+                # Calculate average marks and points
+                average_marks = total_marks / valid_subjects if valid_subjects > 0 else 0
+                average_points = total_points / valid_subjects if valid_subjects > 0 else 0
+
+                # Create table
+                col_widths = [2.0*inch, 0.8*inch, 0.8*inch, 0.7*inch, 1.5*inch, 1.2*inch]
                 table = Table(table_data, colWidths=col_widths)
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -4068,11 +4709,9 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
                 table_height = table._height
                 table_x = 30
                 table_y = 600 - table_height
-
-                # Handle large tables by splitting across pages
                 if table_y < 100:
                     logger.warning(f"Table y-position {table_y} too low for {admission_no}, splitting table")
-                    rows_per_page = 10
+                    rows_per_page = max(5, int((600 - table_y) / 20))
                     for i in range(0, len(table_data), rows_per_page):
                         sub_table = Table(table_data[:1] + table_data[i+1:i+rows_per_page+1], colWidths=col_widths)
                         sub_table.setStyle(TableStyle([
@@ -4087,62 +4726,57 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
                             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                             ('LEFTPADDING', (0, 0), (-1, -1), 4),
                             ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('TOPPADING', (0, 0), (-1, -1), 4),
                             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                         ]))
                         sub_table.wrapOn(c, 500, 400)
                         sub_table.drawOn(c, table_x, 600 - sub_table._height)
                         c.showPage()
                         c.setFont("Helvetica-Bold", 16)
-                        c.drawCentredString(300, 780, "JONYO JUNIOR SECONDARY SCHOOL")
-                        c.setFont("Helvetica", 12)
-                        c.drawCentredString(300, 760, content_data['mission'])
-                        c.drawCentredString(300, 740, content_data['vision'])
+                        c.drawCentredString(300, 750, "JONYO JUNIOR SECONDARY SCHOOL")
                         c.setFont("Helvetica", 14)
-                        c.drawCentredString(300, 720, "REPORT CARD")
+                        c.drawCentredString(300, 730, "REPORT CARD")
                         c.setFont("Helvetica", 12)
                         c.drawString(50, 700, f"Name: {name}")
-                        c.drawString(50, 680, f"Admission No: {admission_no}")
-                        c.drawString(50, 660, f"Grade: {student_grade}")
-                        c.drawString(50, 640, f"Term: {term} {year} ({formatted_exam_type})")
+                        c.drawString(50, 680, f"Admission No: {admission_no.upper()}")
+                        c.drawString(50, 660, f"Grade: {student_grade.capitalize()}")
+                        c.drawString(50, 640, f"Term: {term_info['term']} {year} ({formatted_exam_type})")
                         c.drawString(50, 620, f"School Year: {term_info['year']}")
                     table = None
                 else:
                     table.drawOn(c, table_x, table_y)
 
-                # Footer details with summary
+                # Footer details
                 y = max(table_y - 20, 100) if table else 580
                 student_fees = [
                     f for f in fees
-                    if (isinstance(f, dict) and str(f.get('admission_no', '')).strip().lower() == admission_no.lower()) or
-                       (isinstance(f, (list, tuple)) and len(f) >= 7 and str(f[0]).strip().lower() == admission_no.lower())
+                    if (isinstance(f, dict) and str(f.get('admission_no', '')).strip().lower() == admission_no) or
+                       (isinstance(f, (list, tuple)) and len(f) >= 7 and str(f[0]).strip().lower() == admission_no)
                 ]
-                fee_info = student_fees[0] if student_fees else (admission_no, 0, 0, 0, student_grade, term, year)
-                logger.debug(f"Fees for {admission_no}: {student_fees}")
+                fee_info = student_fees[0] if student_fees else (admission_no, 0, 0, 0, grade, term, year)
 
-                if isinstance(fee_info, dict):
-                    total_fee = float(fee_info.get('total_fee', 0) or 0)
-                    balance = float(fee_info.get('balance', 0) or 0)
-                else:
-                    total_fee = float(fee_info[1] or 0)
-                    balance = float(fee_info[3] or 0)
+                total_fee = float(fee_info[1] if isinstance(fee_info, (list, tuple)) else fee_info.get('total_fee', 0) or 0)
+                balance = float(fee_info[3] if isinstance(fee_info, (list, tuple)) else fee_info.get('balance', 0) or 0)
 
-                class_teacher_level, _, class_teacher_comment = get_performance_level(total_marks, 'class_teacher', db_session)
-                principal_level, _, principal_comment = get_performance_level(total_marks, 'principal', db_session)
-                average_points = total_points / valid_subjects if valid_subjects > 0 else 0
+                student_rank = rank.get(admission_no, 'N/A') if isinstance(rank, dict) else rank if rank else 'N/A'
+
+                # Use average marks for performance level and comments
+                performance_level = get_performance_levels(average_marks, 'class_teacher') if valid_subjects > 0 else 'N/A'
+                class_teacher_comment = get_class_teacher_comment(average_marks, student_grade) if valid_subjects > 0 else 'No performance data available'
+                principal_comment = get_principal_comment(average_marks) if valid_subjects > 0 else 'No performance data available'
 
                 c.setFont("Helvetica", 10)
-                c.drawString(30, y-20, f"Rank: {rank if rank else 'N/A'} out of {total_students if total_students else 'N/A'}")
+                c.drawString(30, y-20, f"Rank: {student_rank} out of {total_students if total_students else 'N/A'}")
                 c.drawString(30, y-40, f"Total Marks: {int(total_marks)}" if total_marks > 0 else "Total Marks: N/A")
                 c.drawString(30, y-60, f"Total Points: {total_points:.2f}" if total_points > 0 else "Total Points: N/A")
                 c.drawString(30, y-80, f"Average Points: {average_points:.2f}" if valid_subjects > 0 else "Average Points: N/A")
-                c.drawString(30, y-100, f"Performance Level: {class_teacher_level if total_marks > 0 else 'N/A'}")
+                c.drawString(30, y-100, f"Performance Level: {performance_level}")
                 c.drawString(30, y-120, f"Total Fee: {total_fee:,.2f}")
                 c.drawString(30, y-140, f"Balance: {balance:,.2f}")
-                c.drawString(30, y-160, f"Class Teacher Comment: {class_teacher_comment[:50] if class_teacher_comment and total_marks > 0 else 'N/A'}")
-                c.drawString(30, y-180, f"Principal Comment: {principal_comment[:50] if principal_comment and total_marks > 0 else 'N/A'}")
-                c.drawString(30, y-200, f"Class Teacher: {get_class_teacher_name(student_grade, db_session)[:20] or 'N/A'}")
-                c.drawString(30, y-220, f"Principal: {get_principal_name(db_session)[:20] or 'N/A'}")
+                c.drawString(30, y-160, f"Class Teacher Comment: {class_teacher_comment[:50]}")
+                c.drawString(30, y-180, f"Principal Comment: {principal_comment[:50]}")
+                c.drawString(30, y-200, f"Class Teacher: {get_class_teacher_name(student_grade)[:30]}")
+                c.drawString(30, y-220, f"Principal: {get_principal_name()[:30]}")
                 c.drawString(30, y-240, f"Start Date: {term_info['start_date']}")
                 c.drawString(30, y-260, f"End Date: {term_info['end_date']}")
                 c.drawString(30, y-280, "School Stamp: ____________________")
@@ -4162,7 +4796,7 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
         if not has_valid_content:
             logger.warning(f"No valid report cards generated for {grade}, {term}, {year}, {exam_type}")
             c.setFont("Helvetica", 12)
-            c.drawString(50, 700, "No valid student data or marks available.")
+            c.drawString(50, 700, "No valid student data or marks available. Please contact your teacher.")
             c.showPage()
             c.save()
             buffer.seek(0)
@@ -4182,6 +4816,7 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
         if 'buffer' in locals():
             buffer.close()
         return None
+
 
 def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ranks, total_students, grade, db_session):
     """Generate a ZIP file containing PDF report cards for all students."""
@@ -4456,16 +5091,10 @@ def download_report_card():
 @login_required
 @admin_required
 def link_parent_student():
-    """Link a parent to a student."""
+    """Link a parent to a student by typing username and admission number."""
     form = LinkParentStudentForm()
     db_session = next(get_db())
     try:
-        # Populate form choices
-        parents = db_session.query(User.id, User.username).filter_by(role='parent').all()
-        form.parent_id.choices = [(str(parent.id), parent.username) for parent in parents]
-        students = db_session.query(Student.admission_no).all()
-        form.admission_no.choices = [(student.admission_no, student.admission_no) for student in students]
-
         # Fetch term_info
         term_data = db_session.query(TermInfo).first()
         term_info = {
@@ -4487,37 +5116,37 @@ def link_parent_student():
         }
 
         if form.validate_on_submit():
-            parent_id = form.parent_id.data
+            parent_username = form.parent_id.data
             admission_no = form.admission_no.data
 
-            # Verify parent exists
-            parent = db_session.query(User).filter_by(id=parent_id, role='parent').first()
+            # Fetch parent_id from username
+            parent = db_session.query(User).filter_by(username=parent_username, role='parent').first()
             if not parent:
-                logger.warning(f"Parent not found for id: {parent_id}")
-                flash('Parent not found.', 'danger')
+                logger.warning(f"Parent not found for username: {parent_username}")
+                flash('Parent username not found.', 'danger')
                 return render_template('link_parent_student.html', form=form, term_info=term_info, content_data=content_data)
 
             # Verify student exists
             student = db_session.query(Student).filter_by(admission_no=admission_no).first()
             if not student:
                 logger.warning(f"Student not found for admission_no: {admission_no}")
-                flash('Student not found.', 'danger')
+                flash('Student admission number not found.', 'danger')
                 return render_template('link_parent_student.html', form=form, term_info=term_info, content_data=content_data)
 
             # Check if link already exists
-            existing_link = db_session.query(ParentStudent).filter_by(parent_id=parent_id, admission_no=admission_no).first()
+            existing_link = db_session.query(ParentStudent).filter_by(parent_id=parent.id, admission_no=admission_no).first()
             if existing_link:
-                logger.warning(f"Existing link found for parent_id: {parent_id}, admission_no: {admission_no}")
+                logger.warning(f"Existing link found for parent_id: {parent.id}, admission_no: {admission_no}")
                 flash('Parent is already linked to this student.', 'danger')
                 return render_template('link_parent_student.html', form=form, term_info=term_info, content_data=content_data)
 
             # Create link
-            link = ParentStudent(parent_id=parent_id, admission_no=admission_no)
+            link = ParentStudent(parent_id=parent.id, admission_no=admission_no)
             db_session.add(link)
             db_session.commit()
-            logger.info(f"Linked parent_id {parent_id} to admission_no {admission_no}")
+            logger.info(f"Linked parent_id {parent.id} to admission_no {admission_no}")
             flash('Parent linked to student successfully!', 'success')
-            return redirect(url_for('app.dashboard'))
+            return redirect(url_for('dashboard'))
 
         return render_template('link_parent_student.html', form=form, term_info=term_info, content_data=content_data)
     except SQLAlchemyError as e:
@@ -4587,14 +5216,14 @@ def delete_link():
         if not parent_username or not admission_no:
             logger.warning("Invalid request: missing parent_id or admission_no")
             flash('Invalid request.', 'danger')
-            return redirect(url_for('app.view_links'))
+            return redirect(url_for('view_links'))
 
         # Fetch parent_id from username
         parent = db_session.query(User).filter_by(username=parent_username, role='parent').first()
         if not parent:
             logger.warning(f"Parent not found for username: {parent_username}")
             flash('Parent not found.', 'danger')
-            return redirect(url_for('app.view_links'))
+            return redirect(url_for('view_links'))
 
         # Delete link
         result = db_session.query(ParentStudent).filter_by(parent_id=parent.id, admission_no=admission_no).delete()
@@ -4615,9 +5244,7 @@ def delete_link():
         flash(f'Error: {str(e)}. Please try again or contact support.', 'danger')
     finally:
         db_session.close()
-    return redirect(url_for('app.view_links'))
-
-
+    return redirect(url_for('view_links'))
 
 
     
