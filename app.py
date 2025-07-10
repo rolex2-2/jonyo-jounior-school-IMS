@@ -2636,7 +2636,7 @@ def enter_marks():
 
             # Populate other form choices
             grades = db_session.query(Student.grade).distinct().all()
-            form.grade.choices = [(g.grade, g.grade) for g in grades if g.grade] or [('Grade 7', 'Grade 7')]
+            form.grade.choices = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')] or [('Grade 7', 'Grade 7')]
             form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
             form.exam_type.choices = [
                 ('cat1', 'CAT 1'), ('cat2', 'CAT 2'), ('cat3', 'CAT 3'),
@@ -2807,7 +2807,7 @@ def enter_marks():
 
                     # Reset form and learners after submission
                     form = MarksForm()
-                    form.grade.choices = [(g.grade, g.grade) for g in db_session.query(Student.grade).distinct().all() if g.grade] or [('Grade 7', 'Grade 7')]
+                    form.grade.choices = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')] or [('Grade 7', 'Grade 7')]
                     form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
                     form.exam_type.choices = [
                         ('cat1', 'CAT 1'), ('cat2', 'CAT 2'), ('cat3', 'CAT 3'),
@@ -2821,7 +2821,7 @@ def enter_marks():
                         form.learning_area.choices = [(f"{a.learning_area}|{a.grade}", f"{a.learning_area} ({a.grade})") for a in assignments] or [('', 'No subjects assigned')]
                     else:
                         learning_areas = db_session.query(LearningAreas.name, LearningAreas.grade).all()
-                        form.learning_area.choices = [(f"{la.name}|{la.grade}", f"{la.name} ({la.grade})") for la in learning_areas]
+                        form.learning_area.choices = [(f"{la.name}|{la-grade}", f"{la.name} ({la.grade})") for la in learning_areas]
                     learners = []
                     show_table = False
 
