@@ -1672,6 +1672,7 @@ def upload_bulk_students():
             df = df.dropna(subset=['Admission No', 'Name'])
             df['Admission No'] = df['Admission No'].astype(str).str.strip()
             df['Name'] = df['Name'].astype(str).str.strip()
+            df = df.sort_values(by='Admission No')  # Sort by Admission No
             if df.empty:
                 flash('No valid data found in the Excel file.', 'warning')
                 logger.warning("Empty dataframe after cleaning")
@@ -1692,85 +1693,123 @@ def upload_bulk_students():
             for start_idx in range(0, len(df), batch_size):
                 batch_df = df[start_idx:start_idx + batch_size]
                 logger.debug(f"Processing batch {start_idx//batch_size + 1}")
-                for index, row in batch_df.iterrows():
-                    admission_no = row['Admission No']
-                    name = row['Name']
-                    logger.debug(f"Row {index+2}: admission_no={admission_no}, name={name}")
-                    if not admission_no or not name:
-                        errors.append(f"Row {index+2}: Admission No or Name is empty")
-                        continue
+                with db_session.no_autoflush:
+                    for index, row in batch_df.iterrows():
+                        admission_no = row['Admission No']
+                        name = row['Name']
+                        logger.debug(f"Row {index+2}: admission_no={admission_no}, name={name}")
+                        if not admission_no or not name:
+                            errors.append(f"Row {index+2}: Admission No or Name is empty")
+                            continue
 
-                    username = name.lower().replace(' ', '_')
-                    counter = 1
-                    orig_username = username
-                    while True:
-                        if not db_session.query(User).filter_by(username=username).first():
-                            break
-                        username = f"{orig_username}_{counter}"
-                        counter += 1
+                        # Check if student already exists
+                        existing_student = db_session.query(Student).filter_by(admission_no=admission_no).first()
+                        if existing_student:
+                            logger.debug(f"Skipping existing student with admission_no={admission_no}")
+                            continue
+
+                        username = name.lower().replace(' ', '_')
+                        counter = 1
+                        orig_username = username
+                        while True:
+                            if not db_session.query(User).filter_by(username=username).first():
+                                break
+                            username = f"{orig_username}_{counter}"
+                            counter += 1
+                            if counter > 5:
+                                errors.append(f"Row {index+2}: Cannot generate unique username for {name}")
+                                logger.error(f"Username generation failed for {name}, admission_no: {admission_no}")
+                                break
                         if counter > 5:
-                            errors.append(f"Row {index+2}: Cannot generate unique username for {name}")
-                            logger.error(f"Username generation failed for {name}, admission_no: {admission_no}")
-                            break
-                    if counter > 5:
-                        continue
+                            continue
 
-                    password = generate_student_password(name, admission_no)
-                    password_hash = generate_password_hash(password)
-                    logger.debug(f"Generated username={username}, password={password}")
+                        password = generate_student_password(name, admission_no)
+                        password_hash = generate_password_hash(password)
+                        logger.debug(f"Generated username={username}, password={password}")
+
+                        try:
+                            new_student = Student(admission_no=admission_no, name=name, grade=grade)
+                            new_user = User(
+                                username=username,
+                                password_hash=password_hash,
+                                role='student',
+                                admission_no=admission_no,
+                                grade=grade
+                            )
+                            db_session.add_all([new_student, new_user])
+                        except Exception as e:
+                            errors.append(f"Row {index+2}: Database error: {str(e)}")
+                            logger.error(f"Database error for row {index+2}: {str(e)}\n{traceback.format_exc()}")
+                            continue
 
                     try:
-                        new_student = Student(admission_no=admission_no, name=name, grade=grade)
-                        new_user = User(
-                            username=username,
-                            password_hash=password_hash,
-                            role='student',
-                            admission_no=admission_no,
-                            grade=grade
-                        )
-                        new_fee = Fee(
-                            admission_no=admission_no,
-                            total_fee=0,
-                            amount_paid=0,
-                            balance=0,
-                            grade=grade,
-                            term=term_info['term'],
-                            year=term_info['year']
-                        )
-                        db_session.add_all([new_student, new_user, new_fee])
+                        db_session.commit()
+                        logger.debug(f"Committed Student and User for batch {start_idx//batch_size + 1}")
+                    except IntegrityError as e:
+                        db_session.rollback()
+                        error_msg = str(e).lower()
+                        for index, row in batch_df.iterrows():
+                            if not (row['Admission No'] and row['Name']):
+                                continue
+                            admission_no = row['Admission No']
+                            name = row['Name']
+                            if 'admission_no' in error_msg:
+                                errors.append(f"Row {index+2}: Admission No {admission_no} already exists")
+                            elif 'username' in error_msg:
+                                errors.append(f"Row {index+2}: Username conflict for {name}")
+                            else:
+                                errors.append(f"Row {index+2}: Database error: {str(e)}")
+                        logger.error(f"IntegrityError for batch {start_idx//batch_size + 1}: {str(e)}")
+                        continue
                     except Exception as e:
-                        errors.append(f"Row {index+2}: Database error: {str(e)}")
-                        logger.error(f"Database error for row {index+2}: {str(e)}\n{traceback.format_exc()}")
+                        db_session.rollback()
+                        errors.append(f"Batch {start_idx//batch_size + 1}: Database error: {str(e)}")
+                        logger.error(f"Batch error: {str(e)}\n{traceback.format_exc()}")
                         continue
 
-                try:
-                    db_session.commit()
-                    for index, row in batch_df.iterrows():
-                        if not (row['Admission No'] and row['Name']):
-                            continue
-                        successes.append(f"{row['Name']} (Admission No: {row['Admission No']})")
-                    logger.debug(f"Committed batch {start_idx//batch_size + 1}")
-                except IntegrityError as e:
-                    db_session.rollback()
-                    error_msg = str(e).lower()
+                    # Add Fee records after committing Student and User
                     for index, row in batch_df.iterrows():
                         if not (row['Admission No'] and row['Name']):
                             continue
                         admission_no = row['Admission No']
-                        name = row['Name']
-                        if 'admission_no' in error_msg:
-                            errors.append(f"Row {index+2}: Admission No {admission_no} already exists")
-                        elif 'username' in error_msg:
-                            errors.append(f"Row {index+2}: Username conflict for {name}")
-                        else:
-                            errors.append(f"Row {index+2}: Database error: {str(e)}")
-                    logger.error(f"IntegrityError for batch {start_idx//batch_size + 1}: {str(e)}")
-                    continue
-                except Exception as e:
-                    db_session.rollback()
-                    errors.append(f"Batch {start_idx//batch_size + 1}: Database error: {str(e)}")
-                    logger.error(f"Batch error: {str(e)}\n{traceback.format_exc()}")
-                    continue
+                        # Skip if student was not added due to existing record
+                        if db_session.query(Student).filter_by(admission_no=admission_no).first():
+                            try:
+                                new_fee = Fee(
+                                    admission_no=admission_no,
+                                    total_fee=0,
+                                    amount_paid=0,
+                                    balance=0,
+                                    grade=grade,
+                                    term=term_info['term'],
+                                    year=term_info['year']
+                                )
+                                db_session.add(new_fee)
+                                successes.append(f"{row['Name']} (Admission No: {row['Admission No']})")
+                            except Exception as e:
+                                errors.append(f"Row {index+2}: Database error for Fee: {str(e)}")
+                                logger.error(f"Database error for Fee in row {index+2}: {str(e)}\n{traceback.format_exc()}")
+                                continue
+
+                    try:
+                        db_session.commit()
+                        logger.debug(f"Committed Fee for batch {start_idx//batch_size + 1}")
+                    except IntegrityError as e:
+                        db_session.rollback()
+                        error_msg = str(e).lower()
+                        for index, row in batch_df.iterrows():
+                            if not (row['Admission No'] and row['Name']):
+                                continue
+                            admission_no = row['Admission No']
+                            name = row['Name']
+                            errors.append(f"Row {index+2}: Fee database error: {str(e)}")
+                        logger.error(f"IntegrityError for Fee in batch {start_idx//batch_size + 1}: {str(e)}")
+                        continue
+                    except Exception as e:
+                        db_session.rollback()
+                        errors.append(f"Batch {start_idx//batch_size + 1}: Fee database error: {str(e)}")
+                        logger.error(f"Fee batch error: {str(e)}\n{traceback.format_exc()}")
+                        continue
 
             if successes:
                 flash(f'Successfully uploaded {len(successes)} students.', 'success')
@@ -1795,8 +1834,6 @@ def upload_bulk_students():
             db_session.close()
 
     return render_template('upload_bulk_students.html', form=form, term_info=term_info, content_data=content_data)
-
-
 
 @app.route('/admin/promote_learners', methods=['POST'])
 @login_required
