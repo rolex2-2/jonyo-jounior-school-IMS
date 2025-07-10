@@ -2813,7 +2813,6 @@ def enter_marks():
                         if rec:
                             rec.marks = marks
                             rec.total_marks = marks
-                            rec.percentage = pct
                             logger.debug(f"Updated marks for {adm_no}: {marks}")
                         else:
                             db_session.add(Marks(
@@ -2825,7 +2824,6 @@ def enter_marks():
                                 term=term,
                                 year=year,
                                 grade=grade,
-                                percentage=pct
                             ))
                             logger.debug(f"Added new marks for {adm_no}: {marks}")
                         saved += 1
