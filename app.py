@@ -1892,6 +1892,7 @@ def search_students():
 def manage_fees():
     """Manage student fees for admin or bursar."""
     filter_form = FeeFilterForm()
+    filter_form.grade.choices = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
     update_form = FeeForm(role=current_user.role)
     students = []
     fees_data = []
