@@ -136,6 +136,9 @@
         <a href="{{ url_for('download_results') }}" class="btn btn-primary"><i class="fas fa-file-excel"></i> Download Results</a>
         <a href="{{ url_for('download_fee_statement_excel') }}" class="btn btn-primary"><i class="fas fa-file-excel"></i> Download Fee Statement (Excel)</a>
         <a href="{{ url_for('admin_notes') }}" class="btn btn-primary"><i class="fas fa-sticky-note"></i> Manage Notes</a>
+        <form action="{{ url_for('promote_learners') }}" method="POST" onsubmit="return confirm('Are you sure you want to promote all learners to the next grade?');">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-arrow-up"></i> Promote Learners</button>
+        </form>
         <a href="{{ url_for('logout') }}" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
     <div class="content-section">
@@ -143,19 +146,19 @@
         <div class="row">
             <div class="col-md-3">
                 <h5>Mission</h5>
-                <p>{{ content_data.mission | safe | default('Our mission is to provide quality education.', true) }}</p>
+                <p>{{ mission_content | safe | default('Our mission is to provide quality education.', true) }}</p>
             </div>
             <div class="col-md-3">
                 <h5>Vision</h5>
-                <p>{{ content_data.vision | safe | default('To be a leading institution in holistic education.', true) }}</p>
+                <p>{{ vision_content | safe | default('To be a leading institution in holistic education.', true) }}</p>
             </div>
             <div class="col-md-3">
                 <h5>About</h5>
-                <p>{{ content_data.about | safe | default('Welcome to Jonyo Junior Secondary School.', true) }}</p>
+                <p>{{ about_content | safe | default('Welcome to Jonyo Junior Secondary School.', true) }}</p>
             </div>
             <div class="col-md-3">
                 <h5>Contact</h5>
-                <p>{{ content_data.contact | safe | default('Contact us at info@jonyojs.ac.ke', true) }}</p>
+                <p>{{ contact_content | safe | default('Contact us at info@jonyojs.ac.ke', true) }}</p>
             </div>
         </div>
     </div>
