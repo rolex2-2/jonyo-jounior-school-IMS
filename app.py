@@ -896,18 +896,19 @@ def admin_dashboard():
             content_data = {}
             for model, content_type in [(Mission, 'mission'), (Vision, 'vision'), (About, 'about'), (Contact, 'contact')]:
                 result = db_session.query(model).filter_by(id=1).first()
-                content_data[content_type + '_content'] = result.content if result else ""
-                logger.debug(f"Fetched {content_type}_content: {content_data[content_type + '_content']}")
+                content_data[content_type] = result.content if result else ""
+                logger.debug(f"Fetched {content_type}_content: {content_data[content_type]}")
 
             recent_announcements = db_session.query(Announcements).order_by(Announcements.date.desc()).limit(5).all()
             recent_announcements = [{'id': a.id, 'content': a.content, 'date': a.date} for a in recent_announcements]
 
             return render_template(
                 'admin_dashboard.html',
-                mission_content=content_data['mission_content'],
-                vision_content=content_data['vision_content'],
-                about_content=content_data['about_content'],
-                contact_content=content_data['contact_content'],
+                content_data=content_data,  # Pass content_data to the template
+                mission_content=content_data['mission'],
+                vision_content=content_data['vision'],
+                about_content=content_data['about'],
+                contact_content=content_data['contact'],
                 recent_announcements=recent_announcements
             )
     except Exception as e:
@@ -915,6 +916,12 @@ def admin_dashboard():
         flash(f'Error loading dashboard: {str(e)}', 'danger')
         return render_template(
             'admin_dashboard.html',
+            content_data={  # Pass content_data in the error case as well
+                'mission': 'Error loading content.',
+                'vision': 'Error loading content.',
+                'about': 'Error loading content.',
+                'contact': 'Error loading content.'
+            },
             mission_content="Error loading content.",
             vision_content="Error loading content.",
             about_content="Error loading content.",
@@ -4446,7 +4453,7 @@ def get_teacher_name(learning_area, grade):
         logger.error(f"Error fetching teacher for {learning_area}, {grade}: {str(e)}")
         return 'Unknown Teacher'
 
-def get_class_teacher_name(student_grade):
+def get_class_teacher_name(grade):
     """Fetch class teacher name for a grade."""
     try:
         if not isinstance(grade, str) or not grade.strip():
@@ -4509,7 +4516,7 @@ def get_rank(admission_no, grade, term, year, exam_type):
                 Marks.total_marks >= 0,
                 Marks.total_marks <= 100
             ).group_by(Marks.admission_no).order_by(func.sum(Marks.total_marks).desc()).all()
-            rank_list = [r[0].strip().lower() for r in ranks]
+            rank_list = [r[0].strip().lower() for r in rank]
             rank = rank_list.index(admission_no) + 1 if admission_no in rank_list else 'N/A'
             logger.debug(f"Rank for {admission_no} in {grade}, {term}, {year}, {exam_type}: {rank}")
             return str(rank)
@@ -4581,6 +4588,7 @@ def get_balance(admission_no):
     except SQLAlchemyError as e:
         logger.error(f"Error fetching balance for {admission_no}: {str(e)}")
         return 0.0
+
 
 
 def generate_report_card(students, marks, fees, term, year, exam_type, rank=None, total_students=None, grade=None, term_info=None):
@@ -4853,88 +4861,229 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
             buffer.close()
         return None
 
+import uuid
 
-def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ranks, total_students, grade, db_session):
-    """Generate a ZIP file containing PDF report cards for all students."""
+def create_zipped_report_cards(students, marks, fees, term, year, exam_type, rank, total_students, grade):
+    """Generate a ZIP file containing report cards for multiple students."""
+    logger.debug(f"Creating zipped report cards for grade: {grade}, term: {term}, year: {year}, exam_type: {exam_type}")
+
+    # Ensure all string inputs are strings and validate
     try:
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for student in students:
-                admission_no = str(student[5]).strip()
-                pdf_buffer = generate_report_card(
-                    students=[student],
-                    marks=marks,
-                    fees=fees,
-                    term=term,
-                    year=year,
-                    exam_type=exam_type,
-                    rank=ranks.get(admission_no, 'N/A'),
-                    total_students=total_students,
-                    grade=grade,
-                    term_info=None,
-                    db_session=db_session
-                )
-                if pdf_buffer and pdf_buffer.getvalue():
-                    student_name = str(student[1]).replace(" ", "_")
-                    filename = f'Report_Card_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}.pdf'
-                    zip_file.writestr(filename, pdf_buffer.getvalue())
-                else:
-                    logger.warning(f"No PDF generated for student {admission_no}")
-                pdf_buffer.close()
-        zip_buffer.seek(0)
-        return zip_buffer
+        term = str(term).strip()
+        exam_type = str(exam_type).strip()
+        grade = str(grade).strip()
+        year = str(year).strip()
     except Exception as e:
-        logger.error(f"Error generating zipped report cards: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Failed to convert inputs to strings: term={term}, year={year}, exam_type={exam_type}, error={str(e)}")
         return None
 
+    if not all(isinstance(x, str) for x in [term, year, exam_type, grade]):
+        logger.error(f"Invalid input types. term={type(term)}, year={type(year)}, exam_type={type(exam_type)}, grade={type(grade)}")
+        return None
+
+    # Validate year
+    try:
+        year_int = int(year)
+        if not (2000 <= year_int <= 2100):
+            logger.error(f"Year {year} is out of valid range (2000-2100)")
+            return None
+    except ValueError:
+        logger.error(f"Invalid year format: {year}")
+        return None
+
+    term_info = {
+        'term': term.capitalize(),
+        'year': year,
+        'principal': 'School Principal',
+        'start_date': '2025-01-01',
+        'end_date': '2025-04-01'
+    }
+
+    zip_buffer = io.BytesIO()
+    report_cards_added = 0
+
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zip_file:
+            for student in students:
+                try:
+                    # Extract student information
+                    if isinstance(student, (list, tuple)) and len(student) >= 6:
+                        admission_no = str(student[5]).strip().lower()
+                        name = str(student[1]).strip()
+                        student_grade = str(student[4]).strip().lower()
+                    elif isinstance(student, dict):
+                        admission_no = str(student.get('admission_no', '')).strip().lower()
+                        name = str(student.get('name', '')).strip()
+                        student_grade = str(student.get('grade', '')).strip().lower()
+                    else:
+                        logger.warning(f"Invalid student format: {student}")
+                        continue
+
+                    # Validate student data
+                    if not admission_no or not name or not student_grade:
+                        logger.warning(f"Incomplete student data: admission_no={admission_no}, name={name}, grade={student_grade}")
+                        continue
+
+                    if student_grade != grade.lower():
+                        logger.debug(f"Skipping {admission_no}: grade mismatch ({student_grade} != {grade})")
+                        continue
+
+                    # Filter student marks
+                    student_marks = [
+                        m for m in marks
+                        if (isinstance(m, dict) and str(m.get('admission_no', '')).strip().lower() == admission_no) or
+                           (isinstance(m, (list, tuple)) and len(m) >= 3 and str(m[0]).strip().lower() == admission_no)
+                    ]
+
+                    # Filter student fees
+                    student_fees = [
+                        f for f in fees
+                        if (isinstance(f, dict) and str(f.get('admission_no', '')).strip().lower() == admission_no) or
+                           (isinstance(f, (list, tuple)) and len(f) >= 7 and str(f[0]).strip().lower() == admission_no)
+                    ] or [(admission_no, 0, 0, 0, grade, term, year)]
+
+                    if not student_marks:
+                        logger.warning(f"No marks found for {admission_no} ({name})")
+                        continue
+
+                    logger.debug(f"Generating report for {admission_no}: marks={len(student_marks)}, fees={len(student_fees)}")
+
+                    # Generate PDF report card
+                    pdf_buffer = generate_report_card(
+                        students=[(None, name, None, None, student_grade, admission_no)],
+                        marks=student_marks,
+                        fees=student_fees,
+                        term=term,
+                        year=year,
+                        exam_type=exam_type,
+                        rank=rank.get(admission_no, 'N/A') if isinstance(rank, dict) else rank,
+                        total_students=total_students,
+                        grade=grade,
+                        term_info=term_info
+                    )
+
+                    if not pdf_buffer or pdf_buffer.getvalue() == b'':
+                        logger.warning(f"generate_report_card returned None or empty for {admission_no}")
+                        continue
+
+                    # Verify PDF content
+                    pdf_content = pdf_buffer.getvalue()
+                    if not pdf_content.startswith(b'%PDF-'):
+                        logger.warning(f"Corrupt or invalid PDF for {admission_no}. Starts with: {pdf_content[:10]}")
+                        pdf_buffer.close()
+                        continue
+
+                    # Generate unique filename
+                    filename = f'Report_Card_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}_{uuid.uuid4().hex[:8]}.pdf'
+                    zip_file.writestr(filename, pdf_content)
+                    report_cards_added += 1
+                    logger.debug(f"Added {filename}, size={len(pdf_content)} bytes")
+                    pdf_buffer.close()
+
+                except Exception as e:
+                    logger.error(f"Error processing student {admission_no}: {str(e)}\n{traceback.format_exc()}")
+                    continue
+
+            # If no report cards were added, include an error message
+            if report_cards_added == 0:
+                missing_students = [
+                    s[5] if isinstance(s, (list, tuple)) else s.get('admission_no', '')
+                    for s in students
+                    if (s[5] if isinstance(s, (list, tuple)) else s.get('admission_no', '')) not in
+                       [m[0] if isinstance(m, (list, tuple)) else m.get('admission_no', '') for m in marks]
+                ]
+                error_message = (
+                    f"No report cards generated for {grade}, {term}, {year}, {exam_type}.\n"
+                    f"Missing marks for: {', '.join(map(str, missing_students))}.\n"
+                    "Please ensure all required data is present in the system."
+                )
+                zip_file.writestr("no_report_cards.txt", error_message.encode('utf-8'))
+                report_cards_added += 1
+                logger.warning(error_message)
+
+        # Ensure buffer is properly positioned
+        zip_buffer.seek(0)
+        zip_content = zip_buffer.getvalue()
+        if not zip_content:
+            logger.error("ZIP file is empty")
+            return None
+
+        # Verify ZIP file integrity
+        try:
+            with zipfile.ZipFile(zip_buffer, 'r') as test_zip:
+                bad_file = test_zip.testzip()
+                if bad_file:
+                    logger.error(f"ZIP integrity check failed, bad file: {bad_file}")
+                    return None
+                logger.debug(f"ZIP integrity verified. Files: {test_zip.namelist()}")
+        except zipfile.BadZipFile as e:
+            logger.error(f"Bad ZIP file generated: {str(e)}\n{traceback.format_exc()}")
+            return None
+
+        logger.info(f"ZIP created with {report_cards_added} files for grade {grade}")
+        return zip_buffer
+
+    except Exception as e:
+        logger.error(f"create_zipped_report_cards failed: {str(e)}\n{traceback.format_exc()}")
+        return None
 
 @app.route('/download_report_card', methods=['GET', 'POST'])
 @login_required
 def download_report_card():
-    """Download zipped report cards for a grade or a single report card for a student."""
+    """Download zipped report cards for a grade (admin only)."""
+    if current_user.role != 'admin':
+        logger.warning(f"Unauthorized access attempt by user {current_user.id} with role {current_user.role}")
+        flash("Only admins can download report cards.", 'danger')
+        return render_template('download_report_card.html', form=ReportCardForm(), term_info=fetch_common_data()[0])
+
     form = ReportCardForm()
     term_info, content_data = fetch_common_data()
     db_session = next(get_db())
     try:
+        # Validate and convert term_info['year'] to integer
+        try:
+            default_year = int(term_info['year']) if term_info.get('year') else 2025
+            if not (2000 <= default_year <= 2100):
+                raise ValueError(f"Year {default_year} out of range (2000-2100)")
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid term_info year: {term_info.get('year')}, error: {str(e)}")
+            default_year = 2025
+            flash("Invalid year in term information. Using default year 2025.", 'warning')
+
         # Populate form choices
         form.grade.choices = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
         form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
         form.exam_type.choices = EXAM_TYPES
-        form.year.data = term_info['year']
-
-        if current_user.role == 'parent':
-            # Fetch students linked to the parent
-            student_choices = db_session.query(Student.admission_no, Student.name).join(
-                ParentStudent, Student.admission_no == ParentStudent.admission_no
-            ).filter(
-                ParentStudent.parent_id == current_user.id
-            ).all()
-            form.admission_no.choices = [(s.admission_no, f"{s.name} ({s.admission_no})") for s in student_choices] or [('', 'No students available')]
-            if not student_choices:
-                logger.warning(f"No students linked to parent {current_user.id}")
-                flash("No students linked to your account.", 'warning')
-                return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
+        form.year.data = default_year
 
         if form.validate_on_submit():
             grade = str(form.grade.data).strip()
             term = str(form.term.data).strip()
-            year = form.year.data  # Integer from IntegerField
+            try:
+                year = int(form.year.data)
+                if not (2000 <= year <= 2100):
+                    raise ValueError(f"Year {year} out of range (2000-2100)")
+            except (ValueError, TypeError) as e:
+                logger.error(f"Invalid form year value: {form.year.data}, error: {str(e)}")
+                flash("Invalid year format. Please enter a valid year (2000-2100).", 'danger')
+                return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
             exam_type = str(form.exam_type.data).strip().lower()
-            admission_no = str(form.admission_no.data).strip() if current_user.role == 'parent' and form.admission_no.data else None
+
+            logger.debug(f"Form submitted: role={current_user.role}, grade={grade}, term={term}, year={year}, exam_type={exam_type}")
 
             # Expanded variations for term and exam_type
-            term_variations = [term.lower(), term.lower().replace('term ', 'term'), term.lower().replace(' ', ''),
-                              term.lower().replace('term', 'term '), f"{term.lower()} 1", term.lower().upper(),
-                              term.lower().capitalize()]
-            exam_type_variations = [exam_type, exam_type.upper(), exam_type.capitalize(),
-                                   exam_type.replace('cat1', 'CAT 1').replace('cat2', 'CAT 2').replace('cat3', 'CAT 3'),
-                                   exam_type.replace('cat', 'CAT ').replace('rat', 'RAT ').replace('midterm', 'Mid Term')
-                                   .replace('endterm', 'End Term').replace('project1', 'Project 1')
-                                   .replace('project2', 'Project 2').replace('project3', 'Project 3')]
-
-            logger.debug(f"Form submitted: role={current_user.role}, grade={grade}, term={term}, year={year} (type={type(year)}), "
-                        f"exam_type={exam_type}, admission_no={admission_no}, term_variations={term_variations}, "
-                        f"exam_type_variations={exam_type_variations}")
+            term_variations = [
+                term.lower(), term.lower().replace('term ', 'term'), term.lower().replace(' ', ''),
+                term.lower().replace('term', 'term '), f"{term.lower()} 1", term.lower().upper(),
+                term.lower().capitalize()
+            ]
+            exam_type_variations = [
+                exam_type, exam_type.upper(), exam_type.capitalize(),
+                exam_type.replace('cat1', 'CAT 1').replace('cat2', 'CAT 2').replace('cat3', 'CAT 3'),
+                exam_type.replace('cat', 'CAT ').replace('rat', 'RAT ').replace('midterm', 'Mid Term')
+                .replace('endterm', 'End Term').replace('project1', 'Project 1')
+                .replace('project2', 'Project 2').replace('project3', 'Project 3')
+            ]
 
             # Pre-check marks availability
             learning_areas = get_learning_areas(grade, db_session)
@@ -4950,154 +5099,179 @@ def download_report_card():
                 func.lower(Marks.exam_type).in_(exam_type_variations),
                 func.lower(Marks.learning_area).in_([la.lower().strip() for la in learning_areas]),
                 Marks.admission_no != None
-            )
-            if admission_no:
-                marks_check = marks_check.filter(func.lower(Marks.admission_no) == admission_no.lower().strip())
-            marks_count = marks_check.count()
-            if marks_count == 0:
-                logger.warning(f"No marks found for grade={grade}, term={term_variations}, year={year}, exam_type={exam_type_variations}, admission_no={admission_no}")
-                flash(f"No marks found for grade {grade}, term {term}, year {year}, exam type {exam_type}. Please contact the system admin.", 'danger')
+            ).count()
+            if marks_check == 0:
+                logger.warning(f"No marks found for grade={grade}, term={term_variations}, year={year}, exam_type={exam_type_variations}")
+                flash(f"No marks found for grade {grade}, term {term}, year {year}, exam type {exam_type}.", 'danger')
                 return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
             # Fetch students
-            students_query = db_session.query(
+            students = db_session.query(
                 Student.id, Student.name, Student.grade, Student.admission_no
-            )
-            if grade and grade != 'all':
-                students_query = students_query.filter(func.lower(Student.grade) == grade.lower().strip())
-            if admission_no:
-                students_query = students_query.filter(func.lower(Student.admission_no) == admission_no.lower().strip())
-                if current_user.role == 'parent':
-                    # Verify parent-student link
-                    link_exists = db_session.query(ParentStudent).filter(
-                        ParentStudent.parent_id == current_user.id,
-                        func.lower(ParentStudent.admission_no) == admission_no.lower().strip()
-                    ).first()
-                    if not link_exists:
-                        logger.warning(f"Parent {current_user.id} not linked to student {admission_no}")
-                        flash(f"You are not authorized to access report card for student {admission_no}.", 'danger')
-                        return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
-            students = students_query.order_by(Student.admission_no).all()
-            logger.debug(f"Fetched {len(students)} students: {[s[3] for s in students]}")
+            ).filter(
+                func.lower(Student.grade) == grade.lower().strip()
+            ).order_by(Student.admission_no).all()
             if not students:
-                flash(f"No students found for grade {grade}{' and admission number ' + admission_no if admission_no else ''}.", 'warning')
+                flash(f"No students found for grade {grade}.", 'warning')
                 return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
-            students_formatted = [(s[0], s[1].strip() if s[1] else 'Unknown', s[2].strip() if s[2] else 'Unknown', s[3].strip() if s[3] else '') for s in students if s[3]]
+            # Format students as 6-element tuples
+            students_formatted = []
+            for s in students:
+                if not s.admission_no:
+                    logger.warning(f"Skipping student with missing admission_no: {s}")
+                    continue
+                try:
+                    student_tuple = (
+                        s.id,  # student_id
+                        s.name.strip() if s.name else 'Unknown',  # name
+                        None,  # placeholder
+                        None,  # placeholder
+                        s.grade.strip() if s.grade else 'Unknown',  # grade
+                        s.admission_no.strip()  # admission_no
+                    )
+                    students_formatted.append(student_tuple)
+                except AttributeError as e:
+                    logger.error(f"Error formatting student: {s}, error: {str(e)}")
+                    continue
+            if not students_formatted:
+                flash(f"No valid students found for grade {grade}. Ensure student records are complete.", 'danger')
+                return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
-            # Fetch marks and validate types
-            marks_query = db_session.query(
+            logger.debug(f"Formatted {len(students_formatted)} students")
+
+            # Fetch marks
+            marks = db_session.query(
                 Marks.admission_no, Marks.learning_area, Marks.marks, Marks.term, Marks.year, Marks.grade, Marks.exam_type
             ).filter(
-                func.lower(Marks.grade) == grade.lower().strip() if grade and grade != 'all' else True,
-                func.lower(Marks.term).in_(term_variations) if term else True,
+                func.lower(Marks.grade) == grade.lower().strip(),
+                func.lower(Marks.term).in_(term_variations),
                 Marks.year == year,
-                func.lower(Marks.exam_type).in_(exam_type_variations) if exam_type else True,
+                func.lower(Marks.exam_type).in_(exam_type_variations),
                 func.lower(Marks.learning_area).in_([la.lower().strip() for la in learning_areas]),
                 Marks.admission_no != None
-            )
-            if admission_no:
-                marks_query = marks_query.filter(func.lower(Marks.admission_no) == admission_no.lower().strip())
-            marks = marks_query.all()
-            logger.debug(f"Fetched {len(marks)} marks for grade={grade}, term={term}, year={year}, exam_type={exam_type}: {[m[:3] for m in marks]}")
+            ).all()
+
+            # Validate and convert marks
+            valid_marks = []
             invalid_marks = []
             for m in marks:
-                logger.debug(f"Raw mark record: admission_no={m[0]!r}, learning_area={m[1]!r}, marks={m[2]} (type={type(m[2])}), term={m[3]!r}, year={m[4]} (type={type(m[4])}), grade={m[5]!r}, exam_type={m[6]!r}")
-                if not isinstance(m[2], (int, float)) or (isinstance(m[2], str) and not m[2].strip().isdigit()):
-                    invalid_marks.append((m[0], m[1], m[2]))
-                if not isinstance(m[4], int):
-                    logger.warning(f"Invalid year type in marks for admission_no={m[0]}, learning_area={m[1]}: year={m[4]} (type={type(m[4])})")
+                try:
+                    marks_value = float(m.marks) if m.marks is not None else None
+                    if marks_value is not None and 0 <= marks_value <= 100:
+                        valid_marks.append((
+                            m.admission_no.strip(),  # admission_no
+                            m.learning_area.strip(),  # learning_area
+                            marks_value,  # marks
+                            m.term.strip(),  # term
+                            m.year,  # year
+                            m.grade.strip(),  # grade
+                            m.exam_type.strip()  # exam_type
+                        ))
+                    else:
+                        invalid_marks.append((m.admission_no, m.learning_area, m.marks))
+                except (ValueError, TypeError):
+                    invalid_marks.append((m.admission_no, m.learning_area, m.marks))
             if invalid_marks:
                 logger.error(f"Invalid marks detected: {invalid_marks}")
-                flash(f"Invalid marks data for some students: {', '.join([f'{m[0]} ({m[1]})' for m in invalid_marks])}. Contact the system admin (info@jonyo.edu).", 'danger')
-                return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
-
-            # Check marks availability per student
-            students_with_marks = {m[0].lower().strip() for m in marks}
-            students_without_marks = [s[3] for s in students_formatted if s[3].lower() not in students_with_marks]
-            if students_without_marks:
-                logger.warning(f"Students without marks for grade={grade}, term={term_variations}, year={year}, exam_type={exam_type_variations}: {students_without_marks}")
-                flash(f"No marks available for some students: {', '.join(students_without_marks)}. Please contact the system admin.", 'warning')
+                flash(f"Invalid marks data for some students: {', '.join([f'{m[0]} ({m[1]})' for m in invalid_marks])}. Contact the system admin.", 'warning')
+                if not valid_marks:
+                    return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
             # Fetch fees
-            fees_query = db_session.query(
+            fees = db_session.query(
                 Fee.admission_no, Fee.total_fee, Fee.amount_paid, Fee.balance, Fee.grade, Fee.term, Fee.year
             ).filter(
-                func.lower(Fee.grade) == grade.lower().strip() if grade and grade != 'all' else True,
-                func.lower(Fee.term).in_(term_variations) if term else True,
+                func.lower(Fee.grade) == grade.lower().strip(),
+                func.lower(Fee.term).in_(term_variations),
                 Fee.year == year,
                 Fee.admission_no != None
-            )
-            if admission_no:
-                fees_query = fees_query.filter(func.lower(Fee.admission_no) == admission_no.lower().strip())
-            fees = fees_query.all()
-            logger.debug(f"Fetched {len(fees)} fees for grade={grade}, term={term}, year={year}: {[f[:4] for f in fees]}")
+            ).all()
+
+            # Validate and convert fees
+            valid_fees = []
+            invalid_fees = []
             for f in fees:
-                logger.debug(f"Raw fee record: admission_no={f[0]!r}, total_fee={f[1]}, amount_paid={f[2]}, balance={f[3]}, grade={f[4]!r}, term={f[5]!r}, year={f[6]}")
+                try:
+                    total_fee = float(f.total_fee) if f.total_fee is not None else 0.0
+                    amount_paid = float(f.amount_paid) if f.amount_paid is not None else 0.0
+                    balance = float(f.balance) if f.balance is not None else 0.0
+                    if all(isinstance(x, (int, float)) and x >= 0 for x in [total_fee, amount_paid, balance]):
+                        valid_fees.append((
+                            f.admission_no.strip(),  # admission_no
+                            total_fee,  # total_fee
+                            amount_paid,  # amount_paid
+                            balance,  # balance
+                            f.grade.strip(),  # grade
+                            f.term.strip(),  # term
+                            f.year  # year
+                        ))
+                    else:
+                        invalid_fees.append((f.admission_no, f.total_fee, f.amount_paid, f.balance))
+                except (ValueError, TypeError):
+                    invalid_fees.append((f.admission_no, f.total_fee, f.amount_paid, f.balance))
+            if invalid_fees:
+                logger.warning(f"Invalid fees detected: {invalid_fees}")
+                flash(f"Invalid fee data for some students: {', '.join([f'{f[0]}' for f in invalid_fees])}. Using default values (0) for affected records.", 'warning')
 
             # Calculate ranks
             rank_query = db_session.query(
                 Marks.admission_no, func.sum(Marks.marks).label('total')
             ).filter(
-                func.lower(Marks.grade) == grade.lower().strip() if grade and grade != 'all' else True,
-                func.lower(Marks.term).in_(term_variations) if term else True,
+                func.lower(Marks.grade) == grade.lower().strip(),
+                func.lower(Marks.term).in_(term_variations),
                 Marks.year == year,
-                func.lower(Marks.exam_type).in_(exam_type_variations) if exam_type else True,
+                func.lower(Marks.exam_type).in_(exam_type_variations),
                 func.lower(Marks.learning_area).in_([la.lower().strip() for la in learning_areas]),
                 Marks.admission_no != None
             ).group_by(Marks.admission_no).order_by(func.sum(Marks.marks).desc())
             rank_query_results = rank_query.all()
-            ranks = {r[0].strip(): i + 1 for i, r in enumerate(rank_query_results) if r[0]}
-            total_students = len(rank_query_results) or len(students)
-            logger.debug(f"Ranks calculated: {len(ranks)} students, total_students={total_students}")
+            ranks = {}
+            for i, r in enumerate(rank_query_results):
+                try:
+                    total_marks = float(r.total) if r.total is not None else 0.0
+                    if 0 <= total_marks <= (100 * len(learning_areas)):
+                        ranks[r.admission_no.strip().lower()] = i + 1
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid total marks for {r.admission_no}: {r.total}")
+                    continue
+            total_students = len(ranks) or len(students_formatted)
 
-            if admission_no:
-                pdf_buffer = generate_report_card(
-                    students=students_formatted,
-                    marks=marks,
-                    fees=fees,
-                    term=term,
-                    year=year,
-                    exam_type=exam_type,
-                    rank=ranks.get(admission_no, 'N/A'),
-                    total_students=total_students,
-                    grade=grade,
-                    term_info=term_info,
-                    db_session=db_session
-                )
-                if not pdf_buffer or len(pdf_buffer.getvalue()) == 0:
-                    logger.error(f"Failed to generate report card for student {admission_no}")
-                    flash(f"Could not generate report card for student {admission_no}. Check database data.", 'danger')
-                    return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
-
-                filename = f'Report_Card_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}.pdf'
-                logger.info(f"Generated report card for student {admission_no} by {current_user.role} {current_user.id}")
-                return send_file(
-                    pdf_buffer,
-                    download_name=filename,
-                    as_attachment=True,
-                    mimetype='application/pdf'
-                )
-            else:
+            # Generate ZIP file
+            try:
                 zip_buffer = create_zipped_report_cards(
                     students=students_formatted,
-                    marks=marks,
-                    fees=fees,
+                    marks=valid_marks,
+                    fees=valid_fees,
                     term=term,
                     year=year,
                     exam_type=exam_type,
-                    ranks=ranks,
+                    rank=ranks,
                     total_students=total_students,
-                    grade=grade,
-                    db_session=db_session
+                    grade=grade
                 )
                 if not zip_buffer or len(zip_buffer.getvalue()) == 0:
                     logger.error(f"Failed to generate zipped report cards for grade {grade}")
-                    flash(f"Could not generate report cards for grade {grade}. Check database data.", 'danger')
+                    flash(f"Could not generate report cards for grade {grade}. Check database data or contact system admin jonyojss@gmail.com.", 'danger')
+                    return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
+
+                # Additional ZIP file validation
+                zip_buffer.seek(0)
+                try:
+                    with zipfile.ZipFile(zip_buffer, 'r') as test_zip:
+                        bad_file = test_zip.testzip()
+                        if bad_file:
+                            logger.error(f"ZIP integrity check failed, bad file: {bad_file}")
+                            flash(f"Generated ZIP file is corrupt. Please contact system admin jonyojss@gmail.com.", 'danger')
+                            return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
+                        logger.debug(f"ZIP file contains: {test_zip.namelist()}")
+                except zipfile.BadZipFile as e:
+                    logger.error(f"Invalid ZIP file: {str(e)}\n{traceback.format_exc()}")
+                    flash(f"Generated ZIP file is invalid. Please contact system admin jonyojss@gmail.com.", 'danger')
                     return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
                 filename = f'Report_Cards_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}.zip'
-                logger.info(f"Generated zipped report cards for grade {grade} by {current_user.role} {current_user.id}")
+                logger.info(f"Admin {current_user.id} downloaded zipped report cards for grade {grade}, size={len(zip_buffer.getvalue())} bytes")
                 return send_file(
                     zip_buffer,
                     download_name=filename,
@@ -5105,24 +5279,27 @@ def download_report_card():
                     mimetype='application/zip'
                 )
 
+            except Exception as e:
+                logger.error(f"Error in create_zipped_report_cards: {str(e)}\n{traceback.format_exc()}")
+                flash(f"Error generating report cards: {str(e)}. Contact the system admin jonyojss@gmail.com.", 'danger')
+                return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
+
         # Set default form values
         form.term.data = term_info['term']
-        form.year.data = term_info['year']
+        form.year.data = default_year
         return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
     except SQLAlchemyError as e:
         db_session.rollback()
         logger.error(f"Database error in download_report_card: {str(e)}\n{traceback.format_exc()}")
-        flash('Database error while generating report cards. Please contact the system admin (info@jonyo.edu).', 'danger')
+        flash('Database error while generating report cards. Please contact the system admin jonyojss@gmail.com.', 'danger')
         return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
     except Exception as e:
         db_session.rollback()
         logger.error(f"Unexpected error in download_report_card: {str(e)}\n{traceback.format_exc()}")
-        flash(f"Error generating report cards: {str(e)}. Please try again or contact support.", 'danger')
+        flash(f"Error generating report cards: {str(e)}. Please try again or contact system admin jonyojss@gmail.com.", 'danger')
         return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
     finally:
         db_session.close()
-
-
 @app.route('/admin/link_parent_student', methods=['GET', 'POST'])
 @login_required
 @admin_required

@@ -15,6 +15,10 @@ from reportlab.platypus import Table, TableStyle
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from database import get_db, User, Student, Marks, Fee, TermInfo, TeacherAssignments, ClassTeachers
+import uuid
+
+
+
 
 # Configure logging
 logging.basicConfig(filename='app.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -476,26 +480,31 @@ def generate_individual_report_card(admission_no, term, year, exam_type):
 
 def create_zipped_report_cards(students, marks, fees, term, year, exam_type, rank, total_students, grade):
     """Generate a ZIP file containing report cards for multiple students."""
-    try:
-        logger.debug(f"Creating zipped report cards for grade: {grade}, term: {term}, year: {year}, exam_type: {exam_type}")
-        db_session = next(get_db())
-        try:
-            term_data = db_session.query(TermInfo).filter_by(id=1).first()
-            term_info = {
-                'term': term_data.term if term_data and term_data.term else term.capitalize(),
-                'year': term_data.year if term_data and term_data.year else year,
-                'principal': term_data.principal if term_data and term_data.principal else 'School Principal',
-                'start_date': term_data.start_date if term_data and term_data.start_date else '2025-01-01',
-                'end_date': term_data.end_date if term_data and term_data.end_date else '2025-04-01'
-            }
-        finally:
-            db_session.close()
+    logger.debug(f"Creating zipped report cards for grade: {grade}, term: {term}, year: {year}, exam_type: {exam_type}")
 
-        zip_buffer = io.BytesIO()
-        report_cards_added = 0
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+    # Input validation
+    if not all(isinstance(x, str) for x in [term, exam_type, grade]):
+        logger.error("term, exam_type, and grade must be strings")
+        return None
+    year = str(year)  # Ensure year is a string
+
+    # Static term info (replace with database query if needed)
+    term_info = {
+        'term': term.capitalize(),
+        'year': str(year),
+        'principal': 'School Principal',
+        'start_date': '2025-01-01',
+        'end_date': '2025-04-01'
+    }
+
+    zip_buffer = io.BytesIO()
+    report_cards_added = 0
+
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zip_file:
             for student in students:
                 try:
+                    # Extract student data
                     if isinstance(student, (list, tuple)) and len(student) >= 6:
                         admission_no = str(student[5]).strip().lower()
                         name = str(student[1]).strip()
@@ -508,6 +517,7 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                         logger.warning(f"Invalid student data: {student}")
                         continue
 
+                    # Validate student data
                     if not all([admission_no, name, student_grade]):
                         logger.warning(f"Invalid student data: admission_no={admission_no}, name={name}, grade={student_grade}")
                         continue
@@ -515,6 +525,7 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                         logger.debug(f"Skipping student {admission_no} with grade {student_grade} (expected {grade})")
                         continue
 
+                    # Filter marks and fees
                     student_marks = [
                         m for m in marks
                         if (isinstance(m, dict) and str(m.get('admission_no', '')).strip().lower() == admission_no) or
@@ -525,40 +536,49 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                         if (isinstance(f, dict) and str(f.get('admission_no', '')).strip().lower() == admission_no) or
                            (isinstance(f, (list, tuple)) and len(f) >= 7 and str(f[0]).strip().lower() == admission_no)
                     ] or [(admission_no, 0, 0, 0, grade, term, year)]
+
+                    if not student_marks:
+                        logger.warning(f"No marks found for student {admission_no} in grade {grade}, term {term}, year {year}, exam_type {exam_type}")
+                        continue
+
                     logger.debug(f"Processing {admission_no}: {len(student_marks)} marks, {len(student_fees)} fees")
 
+                    # Generate PDF report card (assuming generate_report_card is defined elsewhere)
                     pdf_buffer = generate_report_card(
                         students=[(None, name, None, None, student_grade, admission_no)],
                         marks=student_marks,
                         fees=student_fees,
-                        term=term,
-                        year=year,
-                        exam_type=exam_type,
+                        term=str(term),
+                        year=str(year),
+                        exam_type=str(exam_type),
                         rank=rank.get(admission_no, 'N/A') if isinstance(rank, dict) else rank,
                         total_students=total_students,
                         grade=grade,
                         term_info=term_info
                     )
-                    if pdf_buffer is None or len(pdf_buffer.getvalue()) == 0:
-                        logger.warning(f"Failed to generate PDF for {admission_no}")
+
+                    # Validate PDF buffer
+                    if pdf_buffer is None:
+                        logger.warning(f"PDF generation returned None for {admission_no}")
                         continue
                     pdf_content = pdf_buffer.getvalue()
-                    if not pdf_content.startswith(b'%PDF-'):
-                        logger.warning(f"Invalid PDF content for {admission_no}, starts with: {pdf_content[:10]}")
+                    if not pdf_content or len(pdf_content) == 0 or not pdf_content.startswith(b'%PDF-'):
+                        logger.warning(f"Invalid or empty PDF for {admission_no}, starts with: {pdf_content[:10] if pdf_content else 'None'}")
                         pdf_buffer.close()
                         continue
 
-                    zip_file.writestr(
-                        f'Report_Card_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}.pdf',
-                        pdf_content
-                    )
+                    # Generate unique filename to avoid conflicts
+                    filename = f'Report_Card_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}_{uuid.uuid4().hex[:8]}.pdf'
+                    zip_file.writestr(filename, pdf_content)
                     report_cards_added += 1
-                    logger.debug(f"Added report card for {admission_no}, size={len(pdf_content)} bytes")
+                    logger.debug(f"Added report card for {admission_no}, filename={filename}, size={len(pdf_content)} bytes")
                     pdf_buffer.close()
+
                 except Exception as e:
                     logger.error(f"Error generating report card for {admission_no}: {str(e)}\n{traceback.format_exc()}")
                     continue
 
+            # Handle case where no report cards are generated
             if report_cards_added == 0:
                 missing_students = [
                     s[5] if isinstance(s, (list, tuple)) else s.get('admission_no', '')
@@ -574,10 +594,10 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                 report_cards_added += 1
                 logger.warning(error_message)
 
+        # Verify ZIP integrity
         zip_buffer.seek(0)
         if report_cards_added == 0:
             logger.error(f"No files added to ZIP for grade={grade}")
-            zip_buffer.close()
             return None
 
         try:
@@ -585,21 +605,19 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                 bad_file = zip_test.testzip()
                 if bad_file is not None:
                     logger.error(f"Corrupted ZIP file, bad file: {bad_file}")
-                    zip_buffer.close()
                     return None
+                file_list = zip_test.namelist()
+                logger.debug(f"ZIP contains {len(file_list)} files: {file_list}")
         except zipfile.BadZipFile as e:
             logger.error(f"Invalid ZIP file generated: {str(e)}\n{traceback.format_exc()}")
-            zip_buffer.close()
             return None
 
         logger.info(f"Zipped report cards generated for {grade}, {report_cards_added} files, size: {len(zip_buffer.getvalue())} bytes")
         return zip_buffer
+
     except Exception as e:
         logger.error(f"Error in create_zipped_report_cards: {str(e)}\n{traceback.format_exc()}")
-        if 'zip_buffer' in locals():
-            zip_buffer.close()
         return None
-
 def generate_report_card(students, marks, fees, term, year, exam_type, rank=None, total_students=None, grade=None, term_info=None):
     """Generate a PDF report card for multiple students."""
     try:
