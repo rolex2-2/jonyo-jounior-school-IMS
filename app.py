@@ -4864,7 +4864,7 @@ def generate_report_card(students, marks, fees, term, year, exam_type, rank=None
 import uuid
 
 def create_zipped_report_cards(students, marks, fees, term, year, exam_type, rank, total_students, grade):
-    """Generate a ZIP file containing report cards for multiple students."""
+    """Generate a ZIP file containing report card PDFs for each student."""
     logger.debug(f"Creating zipped report cards for grade: {grade}, term: {term}, year: {year}, exam_type: {exam_type}")
 
     # Ensure all string inputs are strings and validate
@@ -4894,7 +4894,7 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
     term_info = {
         'term': term.capitalize(),
         'year': year,
-        'principal': 'School Principal',
+        'principal': get_principal_name(),
         'start_date': '2025-01-01',
         'end_date': '2025-04-01'
     }
@@ -4948,15 +4948,15 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
 
                     logger.debug(f"Generating report for {admission_no}: marks={len(student_marks)}, fees={len(student_fees)}")
 
-                    # Generate PDF report card
+                    # Generate PDF report card for a single student
                     pdf_buffer = generate_report_card(
-                        students=[(None, name, None, None, student_grade, admission_no)],
+                        students=[student],  # Pass single student
                         marks=student_marks,
                         fees=student_fees,
                         term=term,
                         year=year,
                         exam_type=exam_type,
-                        rank=rank.get(admission_no, 'N/A') if isinstance(rank, dict) else rank,
+                        rank=rank.get(admission_no.lower(), 'N/A') if isinstance(rank, dict) else rank,
                         total_students=total_students,
                         grade=grade,
                         term_info=term_info
@@ -4967,6 +4967,7 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                         continue
 
                     # Verify PDF content
+                    pdf_buffer.seek(0)
                     pdf_content = pdf_buffer.getvalue()
                     if not pdf_content.startswith(b'%PDF-'):
                         logger.warning(f"Corrupt or invalid PDF for {admission_no}. Starts with: {pdf_content[:10]}")
@@ -4974,7 +4975,8 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
                         continue
 
                     # Generate unique filename
-                    filename = f'Report_Card_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}_{uuid.uuid4().hex[:8]}.pdf'
+                    safe_name = "".join(c for c in name if c.isalnum() or c in (' ', '_')).replace(' ', '_')
+                    filename = f'Report_Card_{safe_name}_{admission_no}_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}_{uuid.uuid4().hex[:8]}.pdf'
                     zip_file.writestr(filename, pdf_content)
                     report_cards_added += 1
                     logger.debug(f"Added {filename}, size={len(pdf_content)} bytes")
@@ -5025,6 +5027,8 @@ def create_zipped_report_cards(students, marks, fees, term, year, exam_type, ran
 
     except Exception as e:
         logger.error(f"create_zipped_report_cards failed: {str(e)}\n{traceback.format_exc()}")
+        if 'zip_buffer' in locals():
+            zip_buffer.close()
         return None
 
 @app.route('/download_report_card', methods=['GET', 'POST'])
@@ -5053,7 +5057,7 @@ def download_report_card():
         # Populate form choices
         form.grade.choices = [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
         form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        form.exam_type.choices = EXAM_TYPES
+        form.exam_type.choices = EXAM_TYPES  # Ensure EXAM_TYPES is defined
         form.year.data = default_year
 
         if form.validate_on_submit():
@@ -5255,7 +5259,7 @@ def download_report_card():
                     flash(f"Could not generate report cards for grade {grade}. Check database data or contact system admin jonyojss@gmail.com.", 'danger')
                     return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
-                # Additional ZIP file validation
+                # Validate ZIP file integrity
                 zip_buffer.seek(0)
                 try:
                     with zipfile.ZipFile(zip_buffer, 'r') as test_zip:
@@ -5270,6 +5274,8 @@ def download_report_card():
                     flash(f"Generated ZIP file is invalid. Please contact system admin jonyojss@gmail.com.", 'danger')
                     return render_template('download_report_card.html', form=form, term_info=term_info, content_data=content_data)
 
+                # Reset buffer position for sending
+                zip_buffer.seek(0)
                 filename = f'Report_Cards_{grade.replace(" ", "_")}_{term}_{year}_{exam_type}.zip'
                 logger.info(f"Admin {current_user.id} downloaded zipped report cards for grade {grade}, size={len(zip_buffer.getvalue())} bytes")
                 return send_file(
