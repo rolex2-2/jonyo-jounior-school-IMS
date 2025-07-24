@@ -104,6 +104,7 @@ from datetime import datetime
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
+from sqlalchemy import cast, Integer
 
 
 
@@ -928,28 +929,41 @@ def admin_dashboard():
             contact_content="Error loading content.",
             recent_announcements=[]
         )
-@app.route('/parent/dashboard', methods=['GET'])
+@app.route('/parent_dashboard', methods=['GET'])
 @login_required
 def parent_dashboard():
-    """Render the parent dashboard with linked students and direct access to their dashboards."""
+    """Render the parent dashboard showing all linked students."""
     if current_user.role != 'parent':
-        logger.error(f"Unauthorized access to parent_dashboard by user {getattr(current_user, 'id', 'N/A')} with role {getattr(current_user, 'role', 'unknown')}")
+        logger.warning(f"Unauthorized access to parent_dashboard by user {current_user.id} with role {current_user.role}")
         flash('You are not authorized to access this page.', 'danger')
         return redirect(url_for('index'))
 
     db_session = next(get_db())
     try:
-        term_info, content_data = fetch_common_data()
-        parent_name = current_user.username or f'Parent_{current_user.id}'
-        logger.debug(f"Parent details - ID: {current_user.id}, Username: {parent_name}, Role: {current_user.role}")
+        # Log user details for debugging
+        parent_name = getattr(current_user, 'name', 'Parent') or 'Parent'
+        logger.info(f"Fetching data for parent ID: {current_user.id}, role: {current_user.role}, name: {parent_name}")
 
-        # Fetch linked students
-        logger.debug(f"Querying linked students for parent_id: {current_user.id}")
+        # Verify parent exists in users table
+        parent = db_session.query(User).filter_by(id=current_user.id, role='parent').first()
+        if not parent:
+            logger.error(f"No user found with ID {current_user.id} and role 'parent'")
+            flash('User account not found. Please contact the school administration.', 'danger')
+            return redirect(url_for('index'))
+
+        # Update parent_name if available in database
+        parent_name = parent.name if parent.name else 'Parent'
+        logger.debug(f"Parent name from database: {parent_name}")
+
+        # Fetch all students linked to the parent
         linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
             join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
             filter(ParentStudent.parent_id == current_user.id).all()
-        logger.debug(f"Raw linked students: {linked_students}")
+        
+        # Log raw query result
+        logger.debug(f"Raw query result for linked students: {linked_students}")
 
+        # Prepare student data for template
         linked_students = [
             {
                 'admission_no': s.admission_no,
@@ -958,186 +972,56 @@ def parent_dashboard():
             }
             for s in linked_students
         ]
-        logger.debug(f"Processed linked students: {linked_students}")
+
+        # Log processed linked students
+        logger.info(f"Processed linked students: {linked_students}")
 
         if not linked_students:
-            logger.info(f"No linked students found for parent_id: {current_user.id}")
-            flash('No learners linked to your account. Please contact an administrator to link a learner.', 'info')
-
-        # Fetch recent announcements
-        recent_announcements = db_session.query(Announcements.content, Announcements.date).\
-            order_by(Announcements.date.desc()).limit(5).all()
-        recent_announcements = [
-            {
-                'content': row.content if row.content else 'No content available',
-                'date': row.date.strftime('%Y-%m-%d') if row.date else 'Unknown date'
-            }
-            for row in recent_announcements
-        ]
-        logger.debug(f"Recent announcements: {recent_announcements}")
+            # Check if parent_id exists in ParentStudent table
+            parent_exists = db_session.query(ParentStudent).filter_by(parent_id=current_user.id).first()
+            logger.info(f"Parent ID {current_user.id} exists in ParentStudent: {bool(parent_exists)}")
+            if parent_exists:
+                # Check if admission_no exists in Student table
+                linked_admission_nos = db_session.query(ParentStudent.admission_no).filter_by(parent_id=current_user.id).all()
+                logger.debug(f"Linked admission numbers: {linked_admission_nos}")
+                for admission_no in linked_admission_nos:
+                    student_exists = db_session.query(Student).filter_by(admission_no=admission_no[0]).first()
+                    logger.debug(f"Student exists for admission_no {admission_no[0]}: {bool(student_exists)}")
+                flash('No valid students found linked to your account. Please verify with the school administration.', 'warning')
+            else:
+                logger.warning(f"No ParentStudent records found for parent ID {current_user.id}")
+                flash('No students are linked to your account. Please contact the school administration to link your account with a student.', 'warning')
+        else:
+            # Auto-redirect if only one student is linked
+            if len(linked_students) == 1:
+                logger.info(f"Auto-redirecting to single linked student dashboard for admission_no: {linked_students[0]['admission_no']}")
+                return redirect(url_for('student_dashboard', admission_no=linked_students[0]['admission_no']))
 
         return render_template(
             'parent_dashboard.html',
-            parent_name=parent_name,
             linked_students=linked_students,
-            recent_announcements=recent_announcements,
-            term_info=term_info,
-            content_data=content_data
+            parent_name=parent_name
         )
     except SQLAlchemyError as e:
-        logger.error(f"Database error in parent_dashboard for parent_id={current_user.id}: {str(e)}\n{traceback.format_exc()}")
+        db_session.rollback()
+        logger.error(f"Database error in parent_dashboard for user {current_user.id}: {str(e)}\n{traceback.format_exc()}")
         flash('Database error: Unable to load dashboard. Please try again later.', 'danger')
         return render_template(
             'parent_dashboard.html',
-            parent_name=parent_name,
             linked_students=[],
-            recent_announcements=[],
-            term_info=term_info,
-            content_data=content_data
+            parent_name=parent_name
         )
     except Exception as e:
-        logger.error(f"Unexpected error in parent_dashboard for parent_id={current_user.id}: {str(e)}\n{traceback.format_exc()}")
+        db_session.rollback()
+        logger.error(f"Unexpected error in parent_dashboard for user {current_user.id}: {str(e)}\n{traceback.format_exc()}")
         flash('An unexpected error occurred. Please try again later.', 'danger')
         return render_template(
             'parent_dashboard.html',
-            parent_name=parent_name,
             linked_students=[],
-            recent_announcements=[],
-            term_info=term_info,
-            content_data=content_data
+            parent_name=parent_name
         )
     finally:
         db_session.close()
-@app.route('/parent/student_dashboard/<admission_no>', methods=['GET', 'POST'])
-@login_required
-@parent_required
-def parent_student_dashboard(admission_no):
-    """Render the student dashboard for a parent to view their linked student's data."""
-    db_session = next(get_db())
-    try:
-        # Verify parent-student link
-        link = db_session.query(ParentStudent).filter_by(
-            parent_id=current_user.id,
-            admission_no=admission_no
-        ).first()
-        if not link:
-            logger.warning(f"Parent {current_user.id} attempted to access unlinked student {admission_no}")
-            flash('You are not authorized to view this child\'s dashboard.', 'danger')
-            return redirect(url_for('parent_dashboard'))
-
-        # Fetch student data
-        student = db_session.query(Student).filter_by(admission_no=admission_no).first()
-        if not student:
-            logger.warning(f"No student found for admission_no={admission_no}")
-            flash('Student profile not found.', 'danger')
-            return redirect(url_for('parent_dashboard'))
-
-        student_data = {
-            'admission_no': student.admission_no,
-            'name': student.name,
-            'grade': student.grade
-        }
-
-        # Fetch marks
-        marks = db_session.query(Marks).filter_by(admission_no=student.admission_no).order_by(Marks.year.desc(), Marks.term.desc()).limit(10).all()
-        marks = [{
-            'learning_area': m.learning_area,
-            'total_marks': m.total_marks,
-            'exam_type': m.exam_type,
-            'term': m.term,
-            'year': m.year,
-            'grade': m.grade
-        } for m in marks]
-
-        # Fetch announcements
-        recent_announcements = db_session.query(Announcements).order_by(Announcements.date.desc()).limit(5).all()
-        recent_announcements = [{'content': a.content, 'date': a.date} for a in recent_announcements]
-
-        # Fetch term_info and content_data
-        term_info, content_data = fetch_common_data()
-
-        # Initialize forms
-        report_form = ReportCardForm(admission_no=student.admission_no, grade=student.grade)
-        grades = db_session.query(Marks.grade).filter_by(admission_no=student.admission_no).distinct().order_by(Marks.grade).all()
-        grades = [(g[0], g[0]) for g in grades] or [('Grade 7', 'Grade 7'), ('Grade 8', 'Grade 8'), ('Grade 9', 'Grade 9')]
-        report_form.grade.choices = grades
-        report_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
-        report_form.admission_no.data = student.admission_no
-        report_form.grade.data = student.grade
-        report_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        report_form.exam_type.choices = [('endterm', 'End Term'), ('midterm', 'Mid Term')]
-
-        fee_form = FeeStatementForm()
-        linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
-            join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
-            filter(ParentStudent.parent_id == current_user.id).all()
-        fee_form.admission_no.choices = [
-            (s.admission_no, f"{s.name} ({s.admission_no})")
-            for s in linked_students
-        ] if linked_students else []
-        fee_form.grade.choices = grades
-        fee_form.grade.data = student.grade
-        fee_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        fee_form.year.data = str(datetime.now().year)
-
-        view_results_form = ResultsFilterForm(admission_no=student.admission_no, grade=student.grade)
-        view_results_form.grade.choices = grades
-        view_results_form.admission_no.choices = [(student.admission_no, f"{student.name} ({student.admission_no})")]
-        view_results_form.admission_no.data = student.admission_no
-        view_results_form.grade.data = student.grade
-        view_results_form.term.choices = [('Term 1', 'Term 1'), ('Term 2', 'Term 2'), ('Term 3', 'Term 3')]
-        view_results_form.exam_type.choices = [('endterm', 'End Term'), ('midterm', 'Mid Term')]
-
-        return render_template(
-            'student_dashboard.html',
-            student=student_data,
-            marks=marks,
-            recent_announcements=recent_announcements,
-            report_form=report_form,
-            fee_form=fee_form,
-            view_results_form=view_results_form,
-            term_info=term_info,
-            content_data=content_data,
-            parent_view=True,
-            linked_students=linked_students
-        )
-    except SQLAlchemyError as e:
-        db_session.rollback()
-        logger.error(f"Database error in parent_student_dashboard for parent_id={current_user.id}, admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
-        flash('Database error: Unable to load student dashboard. Please try again later.', 'danger')
-        return render_template(
-            'student_dashboard.html',
-            student=None,
-            marks=[],
-            recent_announcements=[],
-            report_form=ReportCardForm(),
-            fee_form=FeeStatementForm(),
-            view_results_form=ResultsFilterForm(),
-            term_info={},
-            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
-            parent_view=True,
-            linked_students=[]
-        )
-    except Exception as e:
-        db_session.rollback()
-        logger.error(f"Unexpected error in parent_student_dashboard for parent_id={current_user.id}, admission_no={admission_no}: {str(e)}\n{traceback.format_exc()}")
-        flash('An unexpected error occurred. Please try again later.', 'danger')
-        return render_template(
-            'student_dashboard.html',
-            student=None,
-            marks=[],
-            recent_announcements=[],
-            report_form=ReportCardForm(),
-            fee_form=FeeStatementForm(),
-            view_results_form=ResultsFilterForm(),
-            term_info={},
-            content_data={'mission': '', 'vision': '', 'about': '', 'contact': ''},
-            parent_view=True,
-            linked_students=[]
-        )
-    finally:
-        db_session.close()
-        
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
@@ -1666,7 +1550,7 @@ def upload_bulk_students():
                 return render_template('upload_bulk_students.html', form=form, term_info=term_info, content_data=content_data)
 
             logger.debug("Reading Excel file")
-            df = pd.read_excel(file, engine='openpyxl', nrows=50)
+            df = pd.read_excel(file, engine='openpyxl', nrows=1000)
             logger.debug(f"Excel rows read: {len(df)}")
 
             required_columns = ['Admission No', 'Name']
@@ -2628,6 +2512,7 @@ def delete_note(note_id):
         logger.error(f"Database error deleting note: {str(e)}\n{traceback.format_exc()}")
         flash(f'Error deleting note: {str(e)}', 'danger')
     return redirect(url_for('admin_notes'))
+
 @app.route('/admin/enter_marks', methods=['GET', 'POST'])
 @login_required
 def enter_marks():
@@ -2735,8 +2620,11 @@ def enter_marks():
                         logger.error(f"Invalid learning area: {learning_area} for grade {grade}")
                         return render_template('enter_marks.html', form=form, learners=learners, show_table=show_table, term_info=term_info, content_data=content_data)
 
-                    # Fetch students
-                    students = db_session.query(Student.admission_no, Student.name).filter_by(grade=grade).order_by(Student.admission_no).all()
+                    # Fetch students in ascending order of admission number
+                    students = db_session.query(Student.admission_no, Student.name)\
+    .filter_by(grade=grade)\
+    .order_by(cast(Student.admission_no, Integer).asc())\
+    .all()
                     logger.debug(f"Fetched {len(students)} students for grade {grade}: {[(s.admission_no, s.name) for s in students[:5]]}")
 
                     if not students:
@@ -2864,7 +2752,7 @@ def enter_marks():
                         form.learning_area.choices = [(f"{a.learning_area}|{a.grade}", f"{a.learning_area} ({a.grade})") for a in assignments] or [('', 'No subjects assigned')]
                     else:
                         learning_areas = db_session.query(LearningAreas.name, LearningAreas.grade).all()
-                        form.learning_area.choices = [(f"{la.name}|{la-grade}", f"{la.name} ({la.grade})") for la in learning_areas]
+                        form.learning_area.choices = [(f"{la.name}|{la.grade}", f"{la.name} ({la.grade})") for la in learning_areas]
                     learners = []
                     show_table = False
 
@@ -3062,16 +2950,39 @@ def edit_marks(admission_no, learning_area, exam_type, term, year):
         
 
         
-@app.route('/admin/view_users', methods=['GET'])
+@app.route('/admin/view_users', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def view_users():
-    """View all users grouped by role and grade."""
+    """View all users grouped by role and grade, sorted by username for non-students and admission_no for students."""
     db_session = next(get_db())
     try:
+        if request.method == 'POST':
+            user_id = request.form.get('user_id')
+            new_username = request.form.get('username')
+            new_admission_no = request.form.get('admission_no')
+            
+            user = db_session.query(User).filter_by(id=user_id).first()
+            if user:
+                # Update username if provided and different
+                if new_username and new_username != user.username:
+                    user.username = new_username
+                
+                # Update admission number if provided and different (only for students)
+                if new_admission_no and user.role == 'student' and new_admission_no != user.admission_no:
+                    user.admission_no = new_admission_no
+                
+                db_session.commit()
+                flash('User details updated successfully', 'success')
+            else:
+                flash('User not found', 'danger')
+            
+            return redirect(url_for('view_users'))
+
         users = db_session.query(User.id, User.username, User.role, User.grade, User.admission_no, User.password_hash).order_by(User.role, User.grade).all()
         term_info, content_data = fetch_common_data()  # Fetch term_info and content_data
 
+        # Group users by role and grade
         grouped_users = {
             'admin': [u for u in users if u.role == 'admin'],
             'teacher': [u for u in users if u.role == 'teacher'],
@@ -3081,6 +2992,14 @@ def view_users():
             'learners_grade8': [u for u in users if u.role == 'student' and u.grade == 'Grade 8'],
             'learners_grade9': [u for u in users if u.role == 'student' and u.grade == 'Grade 9']
         }
+
+        # Sort non-student groups by username
+        for role in ['admin', 'teacher', 'parent', 'bursar']:
+            grouped_users[role] = sorted(grouped_users[role], key=lambda u: u.username.lower())
+
+        # Sort student groups by admission_no (numeric order)
+        for grade in ['learners_grade7', 'learners_grade8', 'learners_grade9']:
+            grouped_users[grade] = sorted(grouped_users[grade], key=lambda u: int(u.admission_no) if u.admission_no else float('inf'))
 
         return render_template('view_users.html', grouped_users=grouped_users, term_info=term_info, content_data=content_data)
     except Exception as e:

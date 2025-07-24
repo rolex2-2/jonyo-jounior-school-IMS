@@ -33,9 +33,7 @@
     .table tbody tr:nth-child(even) {
         background-color: #f8f9fa;
     }
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
+    .btn {
         padding: 8px 16px;
         border: none;
         border-radius: 4px;
@@ -43,11 +41,23 @@
         text-decoration: none;
         display: inline-block;
         cursor: pointer;
+        margin-right: 5px;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
     }
     .btn-danger:hover {
         background-color: #c82333;
     }
-    .btn-danger i {
+    .btn-edit {
+        background-color: #28a745;
+        color: white;
+    }
+    .btn-edit:hover {
+        background-color: #218838;
+    }
+    .btn i {
         margin-right: 8px;
     }
     .flash-message {
@@ -63,6 +73,17 @@
         background-color: #f8d7da;
         color: #721c24;
     }
+    .edit-form {
+        display: none;
+        padding: 10px;
+        background-color: #f8f9fa;
+    }
+    .edit-form input[type="text"] {
+        padding: 5px;
+        margin-right: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
     @media (max-width: 600px) {
         .container {
             padding: 15px;
@@ -71,9 +92,13 @@
             padding: 8px;
             font-size: 0.9em;
         }
-        .btn-danger {
+        .btn {
             padding: 6px 12px;
             font-size: 0.85em;
+        }
+        .edit-form input[type="text"] {
+            width: 100%;
+            margin-bottom: 10px;
         }
     }
 </style>
@@ -122,8 +147,22 @@
                                 {% endif %}
                                 <td>{{ user[2] | capitalize }}</td>
                                 <td>
+                                    <button class="btn btn-edit" onclick="toggleEditForm('edit-form-{{ user[0] }}')"><i class="fas fa-edit"></i> Edit</button>
                                     <form action="{{ url_for('delete_user', user_id=user[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ user[1] or 'this user' }}? This action cannot be undone.');">
                                         <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <tr id="edit-form-{{ user[0] }}" class="edit-form">
+                                <td colspan="{% if group_name.startswith('learners_grade') %}5{% else %}4{% endif %}">
+                                    <form action="{{ url_for('view_users') }}" method="POST">
+                                        <input type="hidden" name="user_id" value="{{ user[0] }}">
+                                        <input type="text" name="username" value="{{ user[1] or '' }}" placeholder="Username" required>
+                                        {% if group_name.startswith('learners_grade') %}
+                                            <input type="text" name="admission_no" value="{{ user[4] or '' }}" placeholder="Admission No">
+                                        {% endif %}
+                                        <button type="submit" class="btn btn-edit">Save</button>
+                                        <button type="button" class="btn btn-danger" onclick="toggleEditForm('edit-form-{{ user[0] }}')">Cancel</button>
                                     </form>
                                 </td>
                             </tr>
@@ -137,6 +176,9 @@
     <a href="{{ url_for('dashboard') }}" class="btn btn-danger"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
 </div>
 <script>
-    // Ensure CSRF token is available
+    function toggleEditForm(formId) {
+        const form = document.getElementById(formId);
+        form.style.display = form.style.display === 'none' ? 'table-row' : 'none';
+    }
 </script>
 {% endblock %}
