@@ -932,38 +932,21 @@ def admin_dashboard():
 @app.route('/parent_dashboard', methods=['GET'])
 @login_required
 def parent_dashboard():
-    """Render the parent dashboard showing all linked students."""
+    """Render the parent dashboard with linked students and announcements."""
     if current_user.role != 'parent':
-        logger.warning(f"Unauthorized access to parent_dashboard by user {current_user.id} with role {current_user.role}")
+        logger.warning(f"Unauthorized access to parent dashboard by user {current_user.id} with role {current_user.role}")
         flash('You are not authorized to access this page.', 'danger')
         return redirect(url_for('index'))
 
     db_session = next(get_db())
     try:
-        # Log user details for debugging
-        parent_name = getattr(current_user, 'name', 'Parent') or 'Parent'
-        logger.info(f"Fetching data for parent ID: {current_user.id}, role: {current_user.role}, name: {parent_name}")
+        # Fetch parent name
+        parent_name = current_user.username  # Adjust if User model has a name field
 
-        # Verify parent exists in users table
-        parent = db_session.query(User).filter_by(id=current_user.id, role='parent').first()
-        if not parent:
-            logger.error(f"No user found with ID {current_user.id} and role 'parent'")
-            flash('User account not found. Please contact the school administration.', 'danger')
-            return redirect(url_for('index'))
-
-        # Update parent_name if available in database
-        parent_name = parent.name if parent.name else 'Parent'
-        logger.debug(f"Parent name from database: {parent_name}")
-
-        # Fetch all students linked to the parent
+        # Fetch linked students
         linked_students = db_session.query(Student.admission_no, Student.name, Student.grade).\
             join(ParentStudent, Student.admission_no == ParentStudent.admission_no).\
             filter(ParentStudent.parent_id == current_user.id).all()
-        
-        # Log raw query result
-        logger.debug(f"Raw query result for linked students: {linked_students}")
-
-        # Prepare student data for template
         linked_students = [
             {
                 'admission_no': s.admission_no,
@@ -973,52 +956,61 @@ def parent_dashboard():
             for s in linked_students
         ]
 
-        # Log processed linked students
-        logger.info(f"Processed linked students: {linked_students}")
+        # Fetch term_info
+        term_data = db_session.query(TermInfo).filter_by(id=1).first()
+        term_info = {
+            'term': term_data.term if term_data and term_data.term else 'Term 1',
+            'year': term_data.year if term_data and term_data.year else '2025',
+            'principal': term_data.principal if term_data and term_data.principal else 'Mr. Principal',
+            'start_date': term_data.start_date if term_data and term_data.start_date else '2025-01-01',
+            'end_date': term_data.end_date if term_data and term_data.end_date else '2025-04-01'
+        }
 
-        if not linked_students:
-            # Check if parent_id exists in ParentStudent table
-            parent_exists = db_session.query(ParentStudent).filter_by(parent_id=current_user.id).first()
-            logger.info(f"Parent ID {current_user.id} exists in ParentStudent: {bool(parent_exists)}")
-            if parent_exists:
-                # Check if admission_no exists in Student table
-                linked_admission_nos = db_session.query(ParentStudent.admission_no).filter_by(parent_id=current_user.id).all()
-                logger.debug(f"Linked admission numbers: {linked_admission_nos}")
-                for admission_no in linked_admission_nos:
-                    student_exists = db_session.query(Student).filter_by(admission_no=admission_no[0]).first()
-                    logger.debug(f"Student exists for admission_no {admission_no[0]}: {bool(student_exists)}")
-                flash('No valid students found linked to your account. Please verify with the school administration.', 'warning')
-            else:
-                logger.warning(f"No ParentStudent records found for parent ID {current_user.id}")
-                flash('No students are linked to your account. Please contact the school administration to link your account with a student.', 'warning')
-        else:
-            # Auto-redirect if only one student is linked
-            if len(linked_students) == 1:
-                logger.info(f"Auto-redirecting to single linked student dashboard for admission_no: {linked_students[0]['admission_no']}")
-                return redirect(url_for('student_dashboard', admission_no=linked_students[0]['admission_no']))
+        # Fetch content_data
+        mission = db_session.query(Mission).first()
+        vision = db_session.query(Vision).first()
+        about = db_session.query(About).first()
+        content_data = {
+            'mission': mission.content if mission else "To provide quality education for all students",
+            'vision': vision.content if vision else "To be a leading institution in academic excellence",
+            'about': about.content if about else "Jonyo Junior School is dedicated to fostering holistic education"
+        }
+
+        # Fetch recent announcements
+        recent_announcements = db_session.query(Announcements).order_by(Announcements.date.desc()).limit(5).all()
+        recent_announcements = [{'content': a.content, 'date': a.date} for a in recent_announcements]
 
         return render_template(
             'parent_dashboard.html',
+            parent_name=parent_name,
             linked_students=linked_students,
-            parent_name=parent_name
+            recent_announcements=recent_announcements,
+            term_info=term_info,
+            content_data=content_data
         )
     except SQLAlchemyError as e:
         db_session.rollback()
-        logger.error(f"Database error in parent_dashboard for user {current_user.id}: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Database error in parent_dashboard: {str(e)}")
         flash('Database error: Unable to load dashboard. Please try again later.', 'danger')
         return render_template(
             'parent_dashboard.html',
+            parent_name=current_user.username,
             linked_students=[],
-            parent_name=parent_name
+            recent_announcements=[],
+            term_info={},
+            content_data={'mission': '', 'vision': '', 'about': ''}
         )
     except Exception as e:
         db_session.rollback()
-        logger.error(f"Unexpected error in parent_dashboard for user {current_user.id}: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Unexpected error in parent_dashboard: {str(e)}")
         flash('An unexpected error occurred. Please try again later.', 'danger')
         return render_template(
             'parent_dashboard.html',
+            parent_name=current_user.username,
             linked_students=[],
-            parent_name=parent_name
+            recent_announcements=[],
+            term_info={},
+            content_data={'mission': '', 'vision': '', 'about': ''}
         )
     finally:
         db_session.close()
@@ -1246,7 +1238,7 @@ def student_dashboard(admission_no=None):
     finally:
         db_session.close()
 
-@app.route('/parent/link_student', methods=['GET', 'POST'])
+@app.route('/link_student', methods=['GET', 'POST'])
 @login_required
 def link_student():
     """Link a parent to a student using admission number."""
@@ -1295,7 +1287,7 @@ def link_student():
                 if existing_link:
                     logger.warning(f"Existing link found for parent_id={parent.id}, admission_no={admission_no}")
                     flash('This student is already linked to your account.', 'warning')
-                    return redirect(url_for('parent_dashboard'))
+                    return redirect(url_for('parent.parent_dashboard'))
 
                 # Create new link
                 new_link = ParentStudent(parent_id=parent.id, admission_no=admission_no)
@@ -1303,7 +1295,7 @@ def link_student():
                 db_session.commit()
                 logger.info(f"Linked parent_id={parent.id} to admission_no={admission_no}")
                 flash(f'Successfully linked student {student.name} to your account.', 'success')
-                return redirect(url_for('parent_dashboard'))
+                return redirect(url_for('parent.parent_dashboard'))
 
             else:
                 logger.debug(f"Form validation failed: {form.errors}")
@@ -1322,7 +1314,6 @@ def link_student():
         return render_template('link_student.html', form=form, term_info=term_info, content_data=content_data, parent_name=parent_name)
     finally:
         db_session.close()
-
 @app.route('/register_student', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -2956,6 +2947,11 @@ def edit_marks(admission_no, learning_area, exam_type, term, year):
 def view_users():
     """View all users grouped by role and grade, sorted by username for non-students and admission_no for students."""
     db_session = next(get_db())
+
+    # Initialize default values for term_info and content_data
+    term_info = {}
+    content_data = {'mission': '', 'vision': '', 'about': ''}
+
     try:
         if request.method == 'POST':
             user_id = request.form.get('user_id')
@@ -2967,20 +2963,32 @@ def view_users():
                 # Update username if provided and different
                 if new_username and new_username != user.username:
                     user.username = new_username
-                
+
                 # Update admission number if provided and different (only for students)
                 if new_admission_no and user.role == 'student' and new_admission_no != user.admission_no:
                     user.admission_no = new_admission_no
-                
-                db_session.commit()
-                flash('User details updated successfully', 'success')
+
+                try:
+                    db_session.commit()
+                    flash('User details updated successfully', 'success')
+                except IntegrityError:
+                    db_session.rollback()
+                    flash('Username or admission number already exists.', 'danger')
+                    return redirect(url_for('view_users'))
             else:
                 flash('User not found', 'danger')
-            
+
             return redirect(url_for('view_users'))
 
-        users = db_session.query(User.id, User.username, User.role, User.grade, User.admission_no, User.password_hash).order_by(User.role, User.grade).all()
-        term_info, content_data = fetch_common_data()  # Fetch term_info and content_data
+        users = db_session.query(
+            User.id, User.username, User.role, User.grade, User.admission_no, User.password_hash
+        ).order_by(User.role, User.grade).all()
+
+        # Safely fetch term_info and content_data
+        try:
+            term_info, content_data = fetch_common_data()
+        except Exception as e:
+            logger.warning(f"Failed to fetch common data: {e}")
 
         # Group users by role and grade
         grouped_users = {
@@ -2999,15 +3007,20 @@ def view_users():
 
         # Sort student groups by admission_no (numeric order)
         for grade in ['learners_grade7', 'learners_grade8', 'learners_grade9']:
-            grouped_users[grade] = sorted(grouped_users[grade], key=lambda u: int(u.admission_no) if u.admission_no else float('inf'))
+            grouped_users[grade] = sorted(
+                grouped_users[grade], key=lambda u: int(u.admission_no) if u.admission_no else float('inf')
+            )
 
         return render_template('view_users.html', grouped_users=grouped_users, term_info=term_info, content_data=content_data)
+
     except Exception as e:
         logger.error(f"Error in view_users: {str(e)}\n{traceback.format_exc()}")
         flash(f'Error retrieving users: {str(e)}', 'danger')
         return render_template('view_users.html', grouped_users={}, term_info=term_info, content_data=content_data)
+
     finally:
         db_session.close()
+
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
 @login_required
