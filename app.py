@@ -2757,6 +2757,7 @@ def enter_marks():
         flash(f'Error: {str(e)}', 'danger')
 
     return render_template('enter_marks.html', form=form, learners=learners, show_table=show_table, term_info=term_info, content_data=content_data)
+
 @app.route('/view_marks', methods=['GET', 'POST'])
 @login_required
 def view_marks():
@@ -2834,6 +2835,9 @@ def view_marks():
                 marks_data.append(row)
                 logger.debug(f'Student {admission_no} total: {total}')
 
+            # Explicitly sort marks_data by admission_no to ensure order
+            marks_data = sorted(marks_data, key=lambda x: int(x['admission_no']) if x['admission_no'] else float('inf'))
+
         edit_route = 'edit_marks'
         return render_template('view_marks.html', form=form, marks_data=marks_data, learning_areas=learning_areas,
                               edit_route=edit_route, role=current_user.role, term_info=term_info, content_data=content_data)
@@ -2846,7 +2850,6 @@ def view_marks():
                               edit_route='edit_marks', role=current_user.role, term_info=term_info, content_data=content_data)
     finally:
         db_session.close()
-        
         
         
 @app.route('/edit_marks/<admission_no>/<learning_area>/<exam_type>/<term>/<year>', methods=['GET', 'POST'])
