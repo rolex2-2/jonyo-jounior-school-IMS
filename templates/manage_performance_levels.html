@@ -146,16 +146,16 @@
         {{ form.hidden_tag() }}
         <div class="row mb-3">
             <div class="col-md-4 form-group">
-                <label for="min_mark"><i class="fas fa-tachometer-alt"></i> Minimum Mark</label>
-                {{ form.min_mark(class="form-control", id="min_mark", placeholder="e.g., 80", required=True, **{'aria-label': 'Minimum Mark'}) }}
-                {% for error in form.min_mark.errors %}
+                <label for="min_marks"><i class="fas fa-tachometer-alt"></i> Minimum Mark</label>
+                {{ form.min_marks(class="form-control", id="min_marks", placeholder="e.g., 80", required=True, **{'aria-label': 'Minimum Mark'}) }}
+                {% for error in form.min_marks.errors %}
                     <span class="error">{{ error }}</span>
                 {% endfor %}
             </div>
             <div class="col-md-4 form-group">
-                <label for="max_mark"><i class="fas fa-tachometer-alt"></i> Maximum Mark</label>
-                {{ form.max_mark(class="form-control", id="max_mark", placeholder="e.g., 100", required=True, **{'aria-label': 'Maximum Mark'}) }}
-                {% for error in form.max_mark.errors %}
+                <label for="max_marks"><i class="fas fa-tachometer-alt"></i> Maximum Mark</label>
+                {{ form.max_marks(class="form-control", id="max_marks", placeholder="e.g., 100", required=True, **{'aria-label': 'Maximum Mark'}) }}
+                {% for error in form.max_marks.errors %}
                     <span class="error">{{ error }}</span>
                 {% endfor %}
             </div>
