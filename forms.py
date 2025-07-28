@@ -405,9 +405,13 @@ class MessageForm(FlaskForm):
 
 # This class defines a form in a Flask application for inputting performance level details including
 # minimum and maximum marks, level, points, comment, and type.
+from flask_wtf import FlaskForm
+from wtforms import IntegerField, StringField, SelectField, FloatField
+from wtforms.validators import DataRequired, NumberRange, Length
+
 class PerformanceLevelForm(FlaskForm):
-    min_marks = IntegerField('Minimum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
-    max_marks = IntegerField('Maximum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
+    min_marks = IntegerField('Minimum Mark', validators=[DataRequired(), NumberRange(min=0, max=1500)])
+    max_marks = IntegerField('Maximum Mark', validators=[DataRequired(), NumberRange(min=0, max=1500)])
     level = StringField('Level', validators=[DataRequired(), Length(min=1, max=50)])
     points = FloatField('Points', validators=[DataRequired(), NumberRange(min=0, max=100)])
     comment = StringField('Comment', validators=[DataRequired(), Length(min=1, max=200)])
