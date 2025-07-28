@@ -173,7 +173,7 @@
         <div class="row mb-3">
             <div class="col-md-4 form-group">
                 <label for="points"><i class="fas fa-medal"></i> Points</label>
-                {{ form.points(class="form-control", id="points", placeholder="e.g., 12", required=True, **{'aria-label': 'Points'}) }}
+            {{ form.points(class="form-control", id="points", step="0.1", placeholder="e.g., 12", required=True, **{'aria-label': 'Points'}) }}
                 {% for error in form.points.errors %}
                     <span class="error">{{ error }}</span>
                 {% endfor %}
