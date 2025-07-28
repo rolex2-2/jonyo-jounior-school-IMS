@@ -1,70 +1,198 @@
 {% extends 'index.html' %}
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">Welcome, {{ parent_name }}</h1>
+<style>
+  .form-container {
+    max-width: 900px;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .dashboard-section {
+    margin-bottom: 1.5rem;
+  }
+  .btn-primary {
+    background-color: #4682b4;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-primary:hover {
+    background-color: #5a9bd4;
+  }
+  .btn-primary i {
+    margin-right: 8px;
+  }
+  .announcements-section {
+    margin-top: 2rem;
+  }
+  .announcement {
+    border-bottom: 1px solid #e9ecef;
+    padding: 1rem 0;
+  }
+  .announcement:last-child {
+    border-bottom: none;
+  }
+  .announcement-content {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+  .announcement-date {
+    color: #6c757d;
+    font-size: 0.875rem;
+  }
+  .alert-info {
+    background-color: #e7f1ff;
+    color: #004085;
+    border-color: #cce5ff;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+  .alert-dismissible .btn-close {
+    padding: 1.25rem;
+  }
+  .flash-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  .table-responsive {
+    margin-top: 1rem;
+  }
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 576px) {
+    .form-container {
+      padding: 16px;
+      margin: 10px;
+    }
+    .btn-primary {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .action-buttons {
+      flex-direction: column;
+    }
+  }
+</style>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+<div class="form-container">
+  <h3 role="heading" aria-level="3"><i class="fas fa-tachometer-alt"></i> Parent Dashboard</h3>
+  <p>Welcome, {{ parent_name }}!</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show flash-message" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <a href="{{ url_for('link_student') }}" class="btn btn-primary" aria-label="Link a Student">
+      <i class="fas fa-link"></i> Link a Student
+    </a>
+  </div>
+
+  <!-- Linked Students -->
+  <div class="dashboard-section">
+    <h4><i class="fas fa-users"></i> Linked Students</h4>
+    {% if linked_students %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Admission Number</th>
+              <th scope="col">Grade</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in linked_students %}
+              <tr>
+                <td>{{ student.name }}</td>
+                <td>{{ student.admission_no }}</td>
+                <td>{{ student.grade }}</td>
+                <td>
+                  <a href="{{ url_for('student_dashboard', admission_no=student.admission_no) }}"
+                     class="btn btn-primary btn-sm"
+                     aria-label="View Dashboard for {{ student.name }}">
+                    <i class="fas fa-eye"></i> View Dashboard
+                  </a>
+                </td>
+              </tr>
             {% endfor %}
-        {% endif %}
-    {% endwith %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info" role="alert">
+        No students linked to your account. Click "Link a Student" to add a student.
+      </div>
+    {% endif %}
+  </div>
 
-    <!-- Linked Students -->
-    <div class="card mb-4">
-        <div class="card-header">Linked Students</div>
-        <div class="card-body">
-            {% if linked_students %}
-                <ul class="list-group">
-                    {% for student in linked_students %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ student.name }} ({{ student.admission_no }}) - Grade {{ student.grade }}</span>
-                            <a href="{{ url_for('student_dashboard', admission_no=student.admission_no) }}" class="btn btn-primary btn-sm">View Dashboard</a>
-                        </li>
-                    {% endfor %}
-                </ul>
-                <a href="{{ url_for('link_student') }}" class="btn btn-success mt-3">Link Another Student</a>
-            {% else %}
-                <p>No students linked to your account. Please contact an administrator to link a learner.</p>
-                <a href="{{ url_for('link_student') }}" class="btn btn-success">Link a Student</a>
-            {% endif %}
+  <!-- Recent Announcements -->
+  <div class="announcements-section">
+    <h4><i class="fas fa-bullhorn"></i> Recent Announcements</h4>
+    {% if recent_announcements %}
+      {% for announcement in recent_announcements %}
+        <div class="announcement">
+          <div class="announcement-content">{{ announcement.content }}</div>
+          <div class="announcement-date">Posted on: {{ announcement.date }}</div>
         </div>
-    </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info" role="alert">No recent announcements available.</div>
+    {% endif %}
+  </div>
 
-    <!-- Announcements -->
-    <div class="card mb-4">
-        <div class="card-header">Recent Announcements</div>
-        <div class="card-body">
-            {% if recent_announcements %}
-                <ul class="list-group">
-                    {% for announcement in recent_announcements %}
-                        <li class="list-group-item">
-                            <p>{{ announcement.content }}</p>
-                            <small class="text-muted">{{ announcement.date }}</small>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No announcements available.</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- School Information -->
-    <div class="card mb-4">
-        <div class="card-header">School Information</div>
-        <div class="card-body">
-            <p><strong>Term:</strong> {{ term_info.term }}</p>
-            <p><strong>Year:</strong> {{ term_info.year }}</p>
-            <p><strong>Principal:</strong> {{ term_info.principal }}</p>
-            <p><strong>Mission:</strong> {{ content_data.mission }}</p>
-            <p><strong>Vision:</strong> {{ content_data.vision }}</p>
-            <p><strong>About:</strong> {{ content_data.about }}</p>
-        </div>
-    </div>
+  <!-- School Information -->
+  <div class="dashboard-section">
+    <h4><i class="fas fa-school"></i> School Information</h4>
+    <p><strong>Term:</strong> {{ term_info.term }}</p>
+    <p><strong>Year:</strong> {{ term_info.year }}</p>
+    <p><strong>Principal:</strong> {{ term_info.principal }}</p>
+    <p><strong>Mission:</strong> {{ content_data.mission }}</p>
+    <p><strong>Vision:</strong> {{ content_data.vision }}</p>
+    <p><strong>About:</strong> {{ content_data.about }}</p>
+  </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Parent Dashboard Loaded');
+  });
+</script>
 {% endblock %}

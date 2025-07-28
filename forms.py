@@ -404,8 +404,8 @@ class MessageForm(FlaskForm):
     submit = SubmitField('Send Message')
 
 class PerformanceLevelForm(FlaskForm):
-    min_mark = IntegerField('Minimum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
-    max_mark = IntegerField('Maximum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
+    min_marks = IntegerField('Minimum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
+    max_marks = IntegerField('Maximum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
     level = StringField('Level', validators=[DataRequired(), Length(min=1, max=50)])
     points = IntegerField('Points', validators=[DataRequired(), NumberRange(min=0, max=100)])
     comment = StringField('Comment', validators=[DataRequired(), Length(min=1, max=200)])
