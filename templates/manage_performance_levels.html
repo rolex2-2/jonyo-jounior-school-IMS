@@ -144,6 +144,9 @@
 
     <form method="POST" action="{{ url_for('manage_performance_levels') }}">
         {{ form.hidden_tag() }}
+        {% if edit_id %}
+            {{ form.edit_id(value=edit_id, type="hidden") }}
+        {% endif %}
         <div class="row mb-3">
             <div class="col-md-4 form-group">
                 <label for="min_marks"><i class="fas fa-tachometer-alt"></i> Minimum Mark</label>
@@ -190,7 +193,7 @@
                 {% endfor %}
             </div>
         </div>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add/Update Performance Level</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {{ 'Update Performance Level' if edit_id else 'Add Performance Level' }}</button>
     </form>
 
     {% if performance_levels %}
@@ -221,9 +224,10 @@
                             <td>{{ level[3] }}</td>
                             <td>{{ level[4] }}</td>
                             <td>{{ level[5] }}</td>
-                            <td>{{ level[6] | capitalize }}</td>
+                            <td>{{ {'learning_area': 'Learning Area', 'class_teacher': 'Class Teacher', 'principal': 'Principal'}[level[6]] }}</td>
                             <td>
-                                <form action="{{ url_for('delete_performance_level', level_id=level[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete the performance level \"{{ level[3] }}\" ({{ level[6] | capitalize }})? This action cannot be undone.');">
+                                <a href="{{ url_for('manage_performance_levels', edit_id=level[0]) }}" class="btn btn-primary" style="margin-right: 5px;"><i class="fas fa-edit"></i> Edit</a>
+                                <form action="{{ url_for('delete_performance_level', level_id=level[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete the performance level \"{{ level[3] }}\" ({{ {'learning_area': 'Learning Area', 'class_teacher': 'Class Teacher', 'principal': 'Principal'}[level[6]] }})? This action cannot be undone.');">
                                     <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
                                 </form>
                             </td>

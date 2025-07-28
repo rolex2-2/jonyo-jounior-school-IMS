@@ -3273,6 +3273,7 @@ def manage_performance_levels():
     form = PerformanceLevelForm()
     term_info, content_data = fetch_common_data()  # Fetch term_info and content_data
     db_session = next(get_db())
+
     try:
         if form.validate_on_submit():
             min_marks = form.min_marks.data
@@ -3282,25 +3283,31 @@ def manage_performance_levels():
             comment = form.comment.data.strip()
             type_ = form.type.data.strip()
 
+            # Validation checks
             if min_marks < 0 or max_marks < 0:
                 flash('Marks cannot be negative!', 'danger')
                 return render_template('manage_performance_levels.html', form=form, performance_levels=[], term_info=term_info, content_data=content_data)
+
             if min_marks > max_marks:
                 flash('Minimum marks cannot exceed maximum marks!', 'danger')
                 return render_template('manage_performance_levels.html', form=form, performance_levels=[], term_info=term_info, content_data=content_data)
-            if type_ not in ['grade', 'subject']:
+
+            if type_ not in ['learning_area', 'class_teacher', 'principal']:
                 flash('Invalid type selected!', 'danger')
                 return render_template('manage_performance_levels.html', form=form, performance_levels=[], term_info=term_info, content_data=content_data)
 
+            # Check for overlapping performance levels
             overlap = db_session.query(PerformanceLevels).filter(
                 PerformanceLevels.type == type_,
                 ((PerformanceLevels.min_marks <= max_marks) & (PerformanceLevels.max_marks >= min_marks) |
                  (PerformanceLevels.min_marks <= min_marks) & (PerformanceLevels.max_marks >= max_marks))
             ).first()
+
             if overlap:
                 flash('Performance level range overlaps with an existing level!', 'danger')
                 return render_template('manage_performance_levels.html', form=form, performance_levels=[], term_info=term_info, content_data=content_data)
 
+            # Insert into database
             try:
                 performance_level = PerformanceLevels(
                     min_marks=min_marks,
@@ -3322,14 +3329,27 @@ def manage_performance_levels():
                 flash(f'Error updating performance level: {str(e)}', 'danger')
                 logger.error(f"Error updating performance level: {str(e)}\n{traceback.format_exc()}")
 
-        performance_levels = db_session.query(PerformanceLevels.id, PerformanceLevels.min_marks, PerformanceLevels.max_marks, PerformanceLevels.level, PerformanceLevels.points, PerformanceLevels.comment, PerformanceLevels.type).order_by(PerformanceLevels.type, PerformanceLevels.min_marks).all()
+        # Fetch all performance levels
+        performance_levels = db_session.query(
+            PerformanceLevels.id,
+            PerformanceLevels.min_marks,
+            PerformanceLevels.max_marks,
+            PerformanceLevels.level,
+            PerformanceLevels.points,
+            PerformanceLevels.comment,
+            PerformanceLevels.type
+        ).order_by(PerformanceLevels.type, PerformanceLevels.min_marks).all()
+
         return render_template('manage_performance_levels.html', form=form, performance_levels=performance_levels, term_info=term_info, content_data=content_data)
+
     except Exception as e:
         logger.error(f"Error in manage_performance_levels: {str(e)}\n{traceback.format_exc()}")
         flash(f'Error: {str(e)}', 'danger')
         return render_template('manage_performance_levels.html', form=form, performance_levels=[], term_info=term_info, content_data=content_data)
+
     finally:
         db_session.close()
+
         
         
         

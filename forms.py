@@ -403,6 +403,8 @@ class MessageForm(FlaskForm):
     recipient_role = SelectField('Recipient Role', choices=[('student', 'Students'), ('teacher', 'Teachers'), ('parent', 'Parents'), ('bursar', 'Bursars')], validators=[DataRequired()])
     submit = SubmitField('Send Message')
 
+# This class defines a form in a Flask application for inputting performance level details including
+# minimum and maximum marks, level, points, comment, and type.
 class PerformanceLevelForm(FlaskForm):
     min_marks = IntegerField('Minimum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
     max_marks = IntegerField('Maximum Mark', validators=[DataRequired(), NumberRange(min=0, max=100)])
