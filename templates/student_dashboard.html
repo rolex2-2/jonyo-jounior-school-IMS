@@ -1,0 +1,585 @@
+<style>
+
+/* ================================
+   COLORFUL STUDENT DASHBOARD
+================================ */
+
+:root {
+    --blue: #2563eb;
+    --purple: #7c3aed;
+    --pink: #db2777;
+    --orange: #ea580c;
+    --green: #16a34a;
+    --cyan: #0891b2;
+    --yellow: #eab308;
+    --dark: #1e293b;
+}
+
+/* MAIN BACKGROUND */
+body {
+    background:
+        linear-gradient(135deg, #eef2ff, #fdf2f8, #ecfeff);
+}
+
+/* MAIN CONTAINER */
+.form-container {
+    max-width: 1150px;
+    margin: 30px auto;
+}
+
+/* ================================
+   COLORFUL HEADER
+================================ */
+
+.dashboard-header {
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #7c3aed,
+            #db2777
+        );
+
+    color: white;
+    padding: 35px;
+    border-radius: 25px;
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 12px 30px rgba(124, 58, 237, 0.35);
+
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header::before {
+    content: "";
+    position: absolute;
+
+    width: 250px;
+    height: 250px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,0.12);
+
+    right: -80px;
+    top: -100px;
+}
+
+.dashboard-header::after {
+    content: "";
+    position: absolute;
+
+    width: 180px;
+    height: 180px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,0.08);
+
+    left: -70px;
+    bottom: -100px;
+}
+
+.dashboard-header h3,
+.dashboard-header p {
+    position: relative;
+    z-index: 2;
+}
+
+/* ================================
+   ACTION BUTTONS
+================================ */
+
+.action-buttons {
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(210px, 1fr));
+
+    gap: 18px;
+
+    margin-bottom: 28px;
+}
+
+.action-buttons button,
+.action-buttons a {
+    min-height: 70px;
+
+    border: none;
+    border-radius: 18px;
+
+    color: white !important;
+
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 10px;
+
+    transition: all 0.3s ease;
+
+    text-decoration: none;
+}
+
+/* BLUE */
+.action-buttons button:nth-child(1) {
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .3);
+}
+
+/* PURPLE */
+.action-buttons button:nth-child(2) {
+    background: linear-gradient(135deg, #7c3aed, #db2777);
+    box-shadow: 0 8px 18px rgba(124, 58, 237, .3);
+}
+
+/* ORANGE */
+.action-buttons button:nth-child(3) {
+    background: linear-gradient(135deg, #ea580c, #facc15);
+    box-shadow: 0 8px 18px rgba(234, 88, 12, .3);
+}
+
+/* GREEN BACK BUTTON */
+.action-buttons a {
+    background: linear-gradient(135deg, #16a34a, #059669);
+    box-shadow: 0 8px 18px rgba(22, 163, 74, .3);
+}
+
+.action-buttons button:hover,
+.action-buttons a:hover {
+    transform: translateY(-6px) scale(1.02);
+    filter: brightness(1.08);
+}
+
+/* ================================
+   DASHBOARD CARDS
+================================ */
+
+.dashboard-section,
+.announcements-section {
+    background: white;
+
+    padding: 25px;
+
+    margin-bottom: 25px;
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 8px 25px rgba(15, 23, 42, .08);
+
+    border-top: 6px solid #2563eb;
+}
+
+/* Different colorful section borders */
+
+.dashboard-section:nth-of-type(2) {
+    border-top-color: #7c3aed;
+}
+
+.dashboard-section:nth-of-type(3) {
+    border-top-color: #db2777;
+}
+
+.dashboard-section:nth-of-type(4) {
+    border-top-color: #ea580c;
+}
+
+.dashboard-section:nth-of-type(5) {
+    border-top-color: #16a34a;
+}
+
+.announcements-section {
+    border-top-color: #facc15;
+}
+
+/* HEADINGS */
+
+.dashboard-section h4,
+.announcements-section h4 {
+    color: #1e293b;
+
+    padding-bottom: 14px;
+
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.dashboard-section h4 i,
+.announcements-section h4 i {
+    margin-right: 10px;
+}
+
+/* Different icon colors */
+
+.dashboard-section h4 i {
+    color: #7c3aed;
+}
+
+.announcements-section h4 i {
+    color: #eab308;
+}
+
+/* ================================
+   STUDENT INFORMATION CARDS
+================================ */
+
+.student-details {
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(220px, 1fr));
+
+    gap: 18px;
+}
+
+.student-info-card {
+    padding: 22px;
+
+    border-radius: 18px;
+
+    color: white;
+
+    min-height: 120px;
+
+    transition: all .3s ease;
+}
+
+/* BLUE CARD */
+.student-info-card:nth-child(1) {
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+}
+
+/* PURPLE CARD */
+.student-info-card:nth-child(2) {
+    background: linear-gradient(135deg, #7c3aed, #db2777);
+}
+
+/* GREEN CARD */
+.student-info-card:nth-child(3) {
+    background: linear-gradient(135deg, #16a34a, #84cc16);
+}
+
+.student-info-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 20px rgba(0,0,0,.15);
+}
+
+.student-info-card strong {
+    display: block;
+
+    font-size: 0.9rem;
+
+    margin-bottom: 12px;
+
+    opacity: .9;
+}
+
+.student-info-card span {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* ================================
+   FORM AREA
+================================ */
+
+.dashboard-section form {
+    background:
+        linear-gradient(
+            135deg,
+            #f8fafc,
+            #eef2ff
+        );
+
+    padding: 22px;
+
+    border-radius: 16px;
+
+    border: 2px solid #e0e7ff;
+}
+
+.form-control,
+.form-select {
+    padding: 13px !important;
+
+    border-radius: 12px !important;
+
+    border: 2px solid #cbd5e1 !important;
+
+    transition: all .3s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #7c3aed !important;
+
+    box-shadow:
+        0 0 0 4px rgba(124,58,237,.15) !important;
+}
+
+/* FORM SUBMIT BUTTON */
+
+.dashboard-section form .btn-primary {
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #7c3aed,
+            #db2777
+        );
+
+    color: white;
+
+    border: none;
+
+    padding: 14px 25px;
+
+    border-radius: 12px;
+
+    font-weight: bold;
+
+    transition: all .3s ease;
+}
+
+.dashboard-section form .btn-primary:hover {
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 8px 18px rgba(124,58,237,.35);
+}
+
+/* ================================
+   COLORFUL TABLE
+================================ */
+
+.table {
+    overflow: hidden;
+
+    border-radius: 14px;
+}
+
+.table thead th {
+    color: white;
+
+    padding: 16px;
+
+    border: none;
+
+    background:
+        linear-gradient(
+            135deg,
+            #1e40af,
+            #7c3aed,
+            #db2777
+        );
+}
+
+.table tbody tr:nth-child(even) {
+    background: #f5f3ff;
+}
+
+.table tbody tr:nth-child(odd) {
+    background: #eff6ff;
+}
+
+.table tbody tr:hover {
+    background: #fef3c7;
+
+    transform: scale(1.01);
+
+    transition: all .2s ease;
+}
+
+.table tbody td {
+    padding: 14px;
+
+    font-weight: 500;
+}
+
+/* ================================
+   ANNOUNCEMENTS
+================================ */
+
+.announcement {
+    padding: 20px;
+
+    margin-bottom: 15px;
+
+    border-radius: 15px;
+
+    border-left: 7px solid #facc15;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fffbeb,
+            #fef3c7
+        );
+
+    transition: all .3s ease;
+}
+
+.announcement:hover {
+    transform: translateX(8px);
+
+    box-shadow:
+        0 6px 15px rgba(234,179,8,.2);
+}
+
+.announcement-content {
+    color: #713f12;
+
+    font-size: 1.05rem;
+
+    font-weight: 600;
+}
+
+.announcement-date {
+    margin-top: 8px;
+
+    color: #92400e;
+}
+
+/* ================================
+   SCHOOL INFORMATION
+================================ */
+
+.school-info-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(250px, 1fr));
+
+    gap: 18px;
+}
+
+.school-info-card {
+    padding: 20px;
+
+    min-height: 130px;
+
+    border-radius: 16px;
+
+    color: white;
+
+    transition: all .3s ease;
+}
+
+.school-info-card:nth-child(1) {
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+}
+
+.school-info-card:nth-child(2) {
+    background: linear-gradient(135deg, #7c3aed, #db2777);
+}
+
+.school-info-card:nth-child(3) {
+    background: linear-gradient(135deg, #16a34a, #059669);
+}
+
+.school-info-card:nth-child(4) {
+    background: linear-gradient(135deg, #ea580c, #f97316);
+}
+
+.school-info-card:nth-child(5) {
+    background: linear-gradient(135deg, #0891b2, #2563eb);
+}
+
+.school-info-card:nth-child(6) {
+    background: linear-gradient(135deg, #db2777, #9333ea);
+}
+
+.school-info-card:hover {
+    transform: translateY(-6px);
+
+    box-shadow:
+        0 10px 20px rgba(0,0,0,.15);
+}
+
+.school-info-card strong {
+    display: block;
+
+    margin-bottom: 10px;
+
+    font-size: 1.05rem;
+}
+
+/* ================================
+   ALERTS
+================================ */
+
+.alert-info {
+    background: linear-gradient(135deg, #dbeafe, #cffafe);
+
+    color: #075985;
+
+    border-left: 6px solid #0891b2;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #dcfce7, #d9f99d);
+
+    color: #166534;
+
+    border-left: 6px solid #16a34a;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #fee2e2, #fce7f3);
+
+    color: #991b1b;
+
+    border-left: 6px solid #dc2626;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fef3c7, #ffedd5);
+
+    color: #92400e;
+
+    border-left: 6px solid #f59e0b;
+}
+
+/* ================================
+   MOBILE
+================================ */
+
+@media (max-width: 768px) {
+
+    .form-container {
+        margin: 15px 10px;
+    }
+
+    .dashboard-header {
+        padding: 25px 20px;
+    }
+
+    .dashboard-header h3 {
+        font-size: 1.35rem;
+    }
+
+    .dashboard-section,
+    .announcements-section {
+        padding: 18px;
+    }
+
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .student-details,
+    .school-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .table {
+        min-width: 700px;
+    }
+
+}
+
+</style>

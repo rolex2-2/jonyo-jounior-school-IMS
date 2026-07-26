@@ -1,0 +1,872 @@
+{% extends "base.html" %}
+
+{% block title %}
+Register - Jonyo Junior Secondary School
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+/* =========================================
+   REGISTRATION PAGE
+========================================= */
+
+.register-page {
+
+    min-height: calc(100vh - 75px);
+
+    padding: 55px 20px;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #e0f7fa,
+
+            #e3f2fd,
+
+            #f3e5f5
+
+        );
+
+}
+
+
+/* =========================================
+   REGISTRATION CARD
+========================================= */
+
+.form-container {
+
+    width: 100%;
+
+    max-width: 600px;
+
+    background: rgba(255, 255, 255, 0.98);
+
+    padding: 40px;
+
+    border-radius: 25px;
+
+    box-shadow:
+
+        0 15px 40px rgba(0, 0, 0, 0.22);
+
+    animation: slideUp 0.7s ease;
+
+}
+
+
+/* =========================================
+   ANIMATION
+========================================= */
+
+@keyframes slideUp {
+
+    from {
+
+        opacity: 0;
+
+        transform: translateY(35px);
+
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform: translateY(0);
+
+    }
+
+}
+
+
+/* =========================================
+   REGISTER ICON
+========================================= */
+
+.register-icon {
+
+    width: 85px;
+
+    height: 85px;
+
+    margin: 0 auto 18px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    color: white;
+
+    font-size: 2.4rem;
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #00695c,
+
+            #1565c0,
+
+            #6a1b9a
+
+        );
+
+    box-shadow:
+
+        0 8px 20px rgba(0, 0, 0, 0.25);
+
+}
+
+
+/* =========================================
+   TITLE
+========================================= */
+
+.register-title {
+
+    text-align: center;
+
+    color: #00695c;
+
+    font-weight: 800;
+
+    font-size: 2rem;
+
+    margin-bottom: 8px;
+
+}
+
+
+.register-subtitle {
+
+    text-align: center;
+
+    color: #78909c;
+
+    margin-bottom: 30px;
+
+}
+
+
+/* =========================================
+   FORM GROUP
+========================================= */
+
+.form-group {
+
+    margin-bottom: 22px;
+
+    position: relative;
+
+}
+
+
+/* =========================================
+   LABEL
+========================================= */
+
+.form-group label {
+
+    display: block;
+
+    font-weight: bold;
+
+    color: #37474f;
+
+    margin-bottom: 8px;
+
+}
+
+
+.form-group label i {
+
+    color: #1565c0;
+
+    margin-right: 8px;
+
+}
+
+
+/* =========================================
+   INPUTS
+========================================= */
+
+.form-control {
+
+    width: 100%;
+
+    padding: 13px 15px;
+
+    border: 2px solid #e0e0e0;
+
+    border-radius: 12px;
+
+    font-size: 1rem;
+
+    background-color: #fafafa;
+
+    transition: 0.3s;
+
+}
+
+
+.form-control:focus {
+
+    border-color: #1565c0;
+
+    box-shadow:
+
+        0 0 0 4px rgba(21, 101, 192, 0.15);
+
+    outline: none;
+
+    background-color: white;
+
+}
+
+
+/* =========================================
+   PASSWORD EYE ICON
+========================================= */
+
+.password-wrapper {
+
+    position: relative;
+
+}
+
+
+.password-wrapper .form-control {
+
+    padding-right: 50px;
+
+}
+
+
+.toggle-password {
+
+    position: absolute;
+
+    right: 16px;
+
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    cursor: pointer;
+
+    color: #1565c0;
+
+    font-size: 1.15rem;
+
+    transition: 0.3s;
+
+}
+
+
+.toggle-password:hover {
+
+    color: #e91e63;
+
+}
+
+
+/* =========================================
+   REGISTER BUTTON
+========================================= */
+
+.btn-register {
+
+    width: 100%;
+
+    padding: 14px;
+
+    border: none;
+
+    border-radius: 30px;
+
+    color: white;
+
+    font-size: 1.1rem;
+
+    font-weight: bold;
+
+    background:
+
+        linear-gradient(
+
+            45deg,
+
+            #00695c,
+
+            #1565c0,
+
+            #6a1b9a
+
+        );
+
+    box-shadow:
+
+        0 6px 15px rgba(0, 0, 0, 0.25);
+
+    transition: 0.4s;
+
+}
+
+
+.btn-register:hover {
+
+    transform: translateY(-3px);
+
+    background:
+
+        linear-gradient(
+
+            45deg,
+
+            #ff9800,
+
+            #e91e63,
+
+            #9c27b0
+
+        );
+
+    box-shadow:
+
+        0 10px 22px rgba(0, 0, 0, 0.3);
+
+}
+
+
+/* =========================================
+   ERROR MESSAGES
+========================================= */
+
+.error {
+
+    display: block;
+
+    color: #dc3545;
+
+    font-size: 0.9rem;
+
+    margin-top: 6px;
+
+}
+
+
+/* =========================================
+   FLASH MESSAGES
+========================================= */
+
+.alert {
+
+    border-radius: 12px;
+
+    padding: 14px;
+
+    margin-bottom: 20px;
+
+}
+
+
+/* =========================================
+   LOGIN LINK
+========================================= */
+
+.login-link {
+
+    text-align: center;
+
+    margin-top: 25px;
+
+    color: #607d8b;
+
+}
+
+
+.login-link a {
+
+    color: #1565c0;
+
+    font-weight: bold;
+
+    text-decoration: none;
+
+}
+
+
+.login-link a:hover {
+
+    color: #e91e63;
+
+    text-decoration: underline;
+
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 600px) {
+
+    .register-page {
+
+        padding: 35px 15px;
+
+    }
+
+
+    .form-container {
+
+        padding: 30px 20px;
+
+    }
+
+
+    .register-title {
+
+        font-size: 1.6rem;
+
+    }
+
+}
+
+</style>
+
+
+<!-- =========================================
+     REGISTRATION PAGE
+========================================= -->
+
+<div class="register-page">
+
+
+    <div class="form-container">
+
+
+        <!-- REGISTER ICON -->
+
+        <div class="register-icon">
+
+            <i class="fas fa-user-plus"></i>
+
+        </div>
+
+
+        <!-- TITLE -->
+
+        <h3 class="register-title">
+
+            Create an Account
+
+        </h3>
+
+
+        <p class="register-subtitle">
+
+            Register for the Jonyo Junior Secondary School system
+
+        </p>
+
+
+        <!-- FLASH MESSAGES -->
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+
+            {% if messages %}
+
+                {% for category, message in messages %}
+
+
+                    <div
+
+                        class="alert
+
+                        alert-{{ 'success' if category == 'success' else 'danger' }}
+
+                        alert-dismissible
+
+                        fade show"
+
+                        role="alert"
+
+                    >
+
+                        {{ message }}
+
+
+                        <button
+
+                            type="button"
+
+                            class="btn-close"
+
+                            data-bs-dismiss="alert"
+
+                            aria-label="Close"
+
+                        >
+
+                        </button>
+
+
+                    </div>
+
+
+                {% endfor %}
+
+            {% endif %}
+
+        {% endwith %}
+
+
+        <!-- REGISTRATION FORM -->
+
+        <form
+
+            method="POST"
+
+            action="{{ url_for('register') }}"
+
+        >
+
+
+            {{ form.hidden_tag() }}
+
+
+            <!-- USERNAME -->
+
+            <div class="form-group">
+
+
+                <label for="username">
+
+                    <i class="fas fa-user"></i>
+
+                    Username
+
+                </label>
+
+
+                {{ form.username(
+
+                    class="form-control",
+
+                    id="username",
+
+                    placeholder="Enter username",
+
+                    required=True
+
+                ) }}
+
+
+                {% for error in form.username.errors %}
+
+
+                    <span class="error">
+
+                        {{ error }}
+
+                    </span>
+
+
+                {% endfor %}
+
+
+            </div>
+
+
+            <!-- PASSWORD -->
+
+            <div class="form-group">
+
+
+                <label for="password">
+
+                    <i class="fas fa-lock"></i>
+
+                    Password
+
+                </label>
+
+
+                <div class="password-wrapper">
+
+
+                    {{ form.password(
+
+                        class="form-control",
+
+                        id="password",
+
+                        placeholder="Enter password",
+
+                        required=True
+
+                    ) }}
+
+
+                    <i
+
+                        class="fas fa-eye toggle-password"
+
+                        onclick="togglePassword('password', this)"
+
+                        aria-label="Show password"
+
+                        role="button"
+
+                    >
+
+                    </i>
+
+
+                </div>
+
+
+                {% for error in form.password.errors %}
+
+
+                    <span class="error">
+
+                        {{ error }}
+
+                    </span>
+
+
+                {% endfor %}
+
+
+            </div>
+
+
+            <!-- CONFIRM PASSWORD -->
+
+            <div class="form-group">
+
+
+                <label for="confirm_password">
+
+                    <i class="fas fa-lock"></i>
+
+                    Confirm Password
+
+                </label>
+
+
+                <div class="password-wrapper">
+
+
+                    {{ form.confirm_password(
+
+                        class="form-control",
+
+                        id="confirm_password",
+
+                        placeholder="Confirm password",
+
+                        required=True
+
+                    ) }}
+
+
+                    <i
+
+                        class="fas fa-eye toggle-password"
+
+                        onclick="togglePassword('confirm_password', this)"
+
+                        aria-label="Show password"
+
+                        role="button"
+
+                    >
+
+                    </i>
+
+
+                </div>
+
+
+                {% for error in form.confirm_password.errors %}
+
+
+                    <span class="error">
+
+                        {{ error }}
+
+                    </span>
+
+
+                {% endfor %}
+
+
+            </div>
+
+
+            <!-- ROLE -->
+
+            <div class="form-group">
+
+
+                <label for="role">
+
+                    <i class="fas fa-user-tag"></i>
+
+                    Role
+
+                </label>
+
+
+                {{ form.role(
+
+                    class="form-control",
+
+                    id="role",
+
+                    required=True
+
+                ) }}
+
+
+                {% for error in form.role.errors %}
+
+
+                    <span class="error">
+
+                        {{ error }}
+
+                    </span>
+
+
+                {% endfor %}
+
+
+            </div>
+
+
+            <!-- REGISTER BUTTON -->
+
+            <button
+
+                type="submit"
+
+                class="btn-register"
+
+            >
+
+                <i class="fas fa-user-plus"></i>
+
+                Register
+
+            </button>
+
+
+        </form>
+
+
+        <!-- LOGIN LINK -->
+
+        <p class="login-link">
+
+
+            Already have an account?
+
+
+            <a href="{{ url_for('login') }}">
+
+                Login here
+
+            </a>
+
+
+        </p>
+
+
+    </div>
+
+</div>
+
+
+<!-- =========================================
+     PASSWORD TOGGLE SCRIPT
+========================================= -->
+
+<script>
+
+function togglePassword(id, icon) {
+
+
+    const input = document.getElementById(id);
+
+
+    if (input.type === "password") {
+
+
+        input.type = "text";
+
+
+        icon.classList.remove("fa-eye");
+
+
+        icon.classList.add("fa-eye-slash");
+
+
+        icon.setAttribute(
+
+            "aria-label",
+
+            "Hide password"
+
+        );
+
+
+    } else {
+
+
+        input.type = "password";
+
+
+        icon.classList.remove("fa-eye-slash");
+
+
+        icon.classList.add("fa-eye");
+
+
+        icon.setAttribute(
+
+            "aria-label",
+
+            "Show password"
+
+        );
+
+    }
+
+}
+
+</script>
+
+{% endblock %}

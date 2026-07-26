@@ -1,0 +1,1863 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+    body {
+        background: linear-gradient(
+            135deg,
+            #eef7ff,
+            #ffffff
+        );
+    }
+
+
+    .performance-wrapper {
+
+        max-width: 1250px;
+
+        margin: 30px auto;
+
+        padding: 20px;
+
+    }
+
+
+    .page-header {
+
+        background: linear-gradient(
+
+            135deg,
+
+            #4682b4,
+
+            #1d4e89
+
+        );
+
+        color: white;
+
+        padding: 30px;
+
+        border-radius: 18px;
+
+        margin-bottom: 25px;
+
+        box-shadow:
+
+            0 10px 25px
+
+            rgba(0, 0, 0, 0.18);
+
+    }
+
+
+    .page-header h2 {
+
+        margin: 0;
+
+        font-weight: bold;
+
+    }
+
+
+    .page-header p {
+
+        margin: 8px 0 0;
+
+        opacity: 0.9;
+
+    }
+
+
+    .form-card {
+
+        background: white;
+
+        padding: 28px;
+
+        border-radius: 18px;
+
+        box-shadow:
+
+            0 8px 25px
+
+            rgba(0, 0, 0, 0.12);
+
+        margin-bottom: 30px;
+
+    }
+
+
+    .form-card.editing {
+
+        border: 3px solid #ffc107;
+
+        background:
+
+            linear-gradient(
+
+                135deg,
+
+                #fffdf2,
+
+                #ffffff
+
+            );
+
+    }
+
+
+    .form-title {
+
+        color: #1d4e89;
+
+        font-weight: bold;
+
+        margin-bottom: 25px;
+
+    }
+
+
+    .form-group {
+
+        margin-bottom: 20px;
+
+    }
+
+
+    .form-group label {
+
+        display: block;
+
+        font-weight: bold;
+
+        margin-bottom: 8px;
+
+        color: #343a40;
+
+    }
+
+
+    .form-group label i {
+
+        color: #4682b4;
+
+        margin-right: 7px;
+
+    }
+
+
+    .form-control,
+
+    .form-select {
+
+        width: 100%;
+
+        padding: 12px;
+
+        border: 1px solid #ced4da;
+
+        border-radius: 10px;
+
+        box-sizing: border-box;
+
+        transition: 0.3s;
+
+    }
+
+
+    .form-control:focus,
+
+    .form-select:focus {
+
+        border-color: #4682b4;
+
+        box-shadow:
+
+            0 0 0 3px
+
+            rgba(70, 130, 180, 0.15);
+
+    }
+
+
+    .btn {
+
+        border: none;
+
+        border-radius: 10px;
+
+        padding: 11px 18px;
+
+        font-weight: bold;
+
+        text-decoration: none;
+
+        display: inline-block;
+
+        transition: 0.3s;
+
+        cursor: pointer;
+
+    }
+
+
+    .btn-primary {
+
+        background: linear-gradient(
+
+            135deg,
+
+            #4682b4,
+
+            #1d4e89
+
+        );
+
+        color: white;
+
+    }
+
+
+    .btn-primary:hover {
+
+        transform: translateY(-2px);
+
+        box-shadow:
+
+            0 5px 12px
+
+            rgba(0, 0, 0, 0.2);
+
+        color: white;
+
+    }
+
+
+    .btn-warning {
+
+        background: #ffc107;
+
+        color: #212529;
+
+    }
+
+
+    .btn-danger {
+
+        background: #dc3545;
+
+        color: white;
+
+    }
+
+
+    .btn-secondary {
+
+        background: #6c757d;
+
+        color: white;
+
+    }
+
+
+    .btn-success {
+
+        background: #198754;
+
+        color: white;
+
+    }
+
+
+    .button-row {
+
+        display: flex;
+
+        gap: 10px;
+
+        flex-wrap: wrap;
+
+        margin-top: 10px;
+
+    }
+
+
+    .alert {
+
+        padding: 15px;
+
+        border-radius: 10px;
+
+        margin-bottom: 20px;
+
+    }
+
+
+    .alert-success {
+
+        background: #d1e7dd;
+
+        color: #0f5132;
+
+    }
+
+
+    .alert-danger {
+
+        background: #f8d7da;
+
+        color: #842029;
+
+    }
+
+
+    .error {
+
+        display: block;
+
+        color: #dc3545;
+
+        font-size: 0.9rem;
+
+        margin-top: 5px;
+
+    }
+
+
+    .type-section {
+
+        background: white;
+
+        border-radius: 18px;
+
+        margin-bottom: 30px;
+
+        overflow: hidden;
+
+        box-shadow:
+
+            0 8px 25px
+
+            rgba(0, 0, 0, 0.10);
+
+    }
+
+
+    .type-header {
+
+        padding: 20px 25px;
+
+        color: white;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+    }
+
+
+    .type-header h3 {
+
+        margin: 0;
+
+        font-weight: bold;
+
+    }
+
+
+    .learning-header {
+
+        background: linear-gradient(
+
+            135deg,
+
+            #198754,
+
+            #0f5132
+
+        );
+
+    }
+
+
+    .class-header {
+
+        background: linear-gradient(
+
+            135deg,
+
+            #0d6efd,
+
+            #084298
+
+        );
+
+    }
+
+
+    .principal-header {
+
+        background: linear-gradient(
+
+            135deg,
+
+            #6f42c1,
+
+            #432874
+
+        );
+
+    }
+
+
+    .table-container {
+
+        overflow-x: auto;
+
+        padding: 20px;
+
+    }
+
+
+    table {
+
+        width: 100%;
+
+        border-collapse: collapse;
+
+        min-width: 850px;
+
+    }
+
+
+    th {
+
+        background: #f1f5f9;
+
+        color: #343a40;
+
+        padding: 14px;
+
+        text-align: center;
+
+        font-weight: bold;
+
+    }
+
+
+    td {
+
+        padding: 14px;
+
+        text-align: center;
+
+        border-top: 1px solid #e9ecef;
+
+    }
+
+
+    tr:hover {
+
+        background: #f8fbff;
+
+    }
+
+
+    .range-badge {
+
+        background: #e7f1ff;
+
+        color: #1d4e89;
+
+        padding: 6px 12px;
+
+        border-radius: 20px;
+
+        font-weight: bold;
+
+    }
+
+
+    .level-badge {
+
+        background: #fff3cd;
+
+        color: #664d03;
+
+        padding: 6px 12px;
+
+        border-radius: 20px;
+
+        font-weight: bold;
+
+    }
+
+
+    .action-buttons {
+
+        display: flex;
+
+        justify-content: center;
+
+        gap: 6px;
+
+        flex-wrap: wrap;
+
+    }
+
+
+    .term-info {
+
+        background: white;
+
+        padding: 25px;
+
+        border-radius: 18px;
+
+        box-shadow:
+
+            0 8px 25px
+
+            rgba(0, 0, 0, 0.10);
+
+        margin-bottom: 25px;
+
+    }
+
+
+    .term-info h4 {
+
+        color: #1d4e89;
+
+        font-weight: bold;
+
+        border-bottom: 2px solid #4682b4;
+
+        padding-bottom: 10px;
+
+    }
+
+
+    .term-grid {
+
+        display: grid;
+
+        grid-template-columns:
+
+            repeat(
+
+                auto-fit,
+
+                minmax(180px, 1fr)
+
+            );
+
+        gap: 15px;
+
+    }
+
+
+    .term-item {
+
+        background: #f8f9fa;
+
+        padding: 15px;
+
+        border-radius: 10px;
+
+    }
+
+
+    .term-item strong {
+
+        display: block;
+
+        color: #4682b4;
+
+        margin-bottom: 5px;
+
+    }
+
+
+    .empty-message {
+
+        padding: 25px;
+
+        text-align: center;
+
+        color: #6c757d;
+
+    }
+
+
+    @media (max-width: 768px) {
+
+        .performance-wrapper {
+
+            padding: 10px;
+
+        }
+
+
+        .page-header {
+
+            padding: 22px;
+
+        }
+
+
+        .form-card {
+
+            padding: 20px;
+
+        }
+
+
+        .type-header {
+
+            display: block;
+
+        }
+
+
+        .type-header h3 {
+
+            margin-bottom: 10px;
+
+        }
+
+    }
+
+</style>
+
+
+<div class="performance-wrapper">
+
+
+    <!-- PAGE HEADER -->
+
+    <div class="page-header">
+
+        <h2>
+
+            <i class="fas fa-chart-line"></i>
+
+            Manage Performance Levels
+
+        </h2>
+
+        <p>
+
+            Create, edit and organize performance levels
+
+            according to their type.
+
+        </p>
+
+    </div>
+
+
+    <!-- FLASH MESSAGES -->
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            {% for category, message in messages %}
+
+                <div class="alert alert-{{ category }}">
+
+                    <i class="fas fa-info-circle"></i>
+
+                    {{ message }}
+
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <!-- ADD / EDIT FORM -->
+
+    <div class="form-card {% if edit_id %}editing{% endif %}">
+
+
+        <h3 class="form-title">
+
+
+            {% if edit_id %}
+
+                <i class="fas fa-edit"></i>
+
+                Edit Performance Level
+
+            {% else %}
+
+                <i class="fas fa-plus-circle"></i>
+
+                Add Performance Level
+
+            {% endif %}
+
+
+        </h3>
+
+
+        {% if edit_id %}
+
+            <div class="alert alert-warning">
+
+                <i class="fas fa-pencil-alt"></i>
+
+                You are currently editing a performance level.
+
+                Make your changes and click
+
+                <strong>Update Performance Level</strong>.
+
+            </div>
+
+        {% endif %}
+
+
+        <form
+
+            method="POST"
+
+            action="{{ url_for(
+
+                'manage_performance_levels',
+
+                edit_id=edit_id
+
+            ) if edit_id else url_for(
+
+                'manage_performance_levels'
+
+            ) }}"
+
+        >
+
+
+            {{ form.hidden_tag() }}
+
+
+            <div class="row">
+
+
+                <!-- MINIMUM MARK -->
+
+                <div class="col-md-4 form-group">
+
+
+                    <label for="min_marks">
+
+                        <i class="fas fa-arrow-down"></i>
+
+                        Minimum Mark
+
+                    </label>
+
+
+                    {{ form.min_marks(
+
+                        class="form-control",
+
+                        id="min_marks",
+
+                        placeholder="e.g. 0",
+
+                        required=True
+
+                    ) }}
+
+
+                    {% for error in form.min_marks.errors %}
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- MAXIMUM MARK -->
+
+                <div class="col-md-4 form-group">
+
+
+                    <label for="max_marks">
+
+                        <i class="fas fa-arrow-up"></i>
+
+                        Maximum Mark
+
+                    </label>
+
+
+                    {{ form.max_marks(
+
+                        class="form-control",
+
+                        id="max_marks",
+
+                        placeholder="e.g. 100",
+
+                        required=True
+
+                    ) }}
+
+
+                    {% for error in form.max_marks.errors %}
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- LEVEL -->
+
+                <div class="col-md-4 form-group">
+
+
+                    <label for="level">
+
+                        <i class="fas fa-star"></i>
+
+                        Performance Level
+
+                    </label>
+
+
+                    {{ form.level(
+
+                        class="form-control",
+
+                        id="level",
+
+                        placeholder="e.g. Exceeds Expectations",
+
+                        required=True
+
+                    ) }}
+
+
+                    {% for error in form.level.errors %}
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+                    {% endfor %}
+
+
+                </div>
+
+
+            </div>
+
+
+            <div class="row">
+
+
+                <!-- POINTS -->
+
+                <div class="col-md-4 form-group">
+
+
+                    <label for="points">
+
+                        <i class="fas fa-medal"></i>
+
+                        Points
+
+                    </label>
+
+
+                    {{ form.points(
+
+                        class="form-control",
+
+                        id="points",
+
+                        step="0.1",
+
+                        placeholder="e.g. 12",
+
+                        required=True
+
+                    ) }}
+
+
+                    {% for error in form.points.errors %}
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- TYPE -->
+
+                <div class="col-md-4 form-group">
+
+
+                    <label for="type">
+
+                        <i class="fas fa-tags"></i>
+
+                        Type
+
+                    </label>
+
+
+                    {{ form.type(
+
+                        class="form-select",
+
+                        id="type",
+
+                        required=True
+
+                    ) }}
+
+
+                    {% for error in form.type.errors %}
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- COMMENT -->
+
+                <div class="col-md-4 form-group">
+
+
+                    <label for="comment">
+
+                        <i class="fas fa-comment"></i>
+
+                        Comment
+
+                    </label>
+
+
+                    {{ form.comment(
+
+                        class="form-control",
+
+                        id="comment",
+
+                        placeholder="e.g. Excellent Performance",
+
+                        required=True
+
+                    ) }}
+
+
+                    {% for error in form.comment.errors %}
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+                    {% endfor %}
+
+
+                </div>
+
+
+            </div>
+
+
+            <div class="button-row">
+
+
+                {% if edit_id %}
+
+
+                    <button
+
+                        type="submit"
+
+                        class="btn btn-warning"
+
+                    >
+
+                        <i class="fas fa-save"></i>
+
+                        Update Performance Level
+
+                    </button>
+
+
+                    <a
+
+                        href="{{ url_for(
+
+                            'manage_performance_levels'
+
+                        ) }}"
+
+                        class="btn btn-secondary"
+
+                    >
+
+                        <i class="fas fa-times"></i>
+
+                        Cancel Edit
+
+                    </a>
+
+
+                {% else %}
+
+
+                    <button
+
+                        type="submit"
+
+                        class="btn btn-primary"
+
+                    >
+
+                        <i class="fas fa-plus"></i>
+
+                        Add Performance Level
+
+                    </button>
+
+
+                {% endif %}
+
+
+            </div>
+
+
+        </form>
+
+
+    </div>
+
+
+    <!-- LEARNING AREA LEVELS -->
+
+    <div class="type-section">
+
+
+        <div class="type-header learning-header">
+
+
+            <h3>
+
+                <i class="fas fa-book"></i>
+
+                Learning Area Performance Levels
+
+            </h3>
+
+
+            <span>
+
+                {{ grouped_levels['learning_area']|length }}
+
+                Level(s)
+
+            </span>
+
+
+        </div>
+
+
+        {% if grouped_levels['learning_area'] %}
+
+
+            <div class="table-container">
+
+
+                <table>
+
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Minimum Mark</th>
+
+                            <th>Maximum Mark</th>
+
+                            <th>Level</th>
+
+                            <th>Points</th>
+
+                            <th>Comment</th>
+
+                            <th>Actions</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                        {% for level in grouped_levels['learning_area'] %}
+
+
+                            <tr>
+
+
+                                <td>
+
+                                    <span class="range-badge">
+
+                                        {{ level[1] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="range-badge">
+
+                                        {{ level[2] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="level-badge">
+
+                                        {{ level[3] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ level[4] }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ level[5] }}
+
+                                </td>
+
+
+                                <td>
+
+
+                                    <div class="action-buttons">
+
+
+                                        <a
+
+                                            href="{{ url_for(
+
+                                                'manage_performance_levels',
+
+                                                edit_id=level[0]
+
+                                            ) }}"
+
+                                            class="btn btn-primary"
+
+                                        >
+
+                                            <i class="fas fa-edit"></i>
+
+                                            Edit
+
+                                        </a>
+
+
+                                        <form
+
+                                            action="{{ url_for(
+
+                                                'delete_performance_level',
+
+                                                level_id=level[0]
+
+                                            ) }}"
+
+                                            method="POST"
+
+                                            style="display:inline;"
+
+                                            onsubmit="return confirm(
+
+                                                'Delete this performance level?'
+
+                                            );"
+
+                                        >
+
+
+                                            <button
+
+                                                type="submit"
+
+                                                class="btn btn-danger"
+
+                                            >
+
+                                                <i class="fas fa-trash"></i>
+
+                                                Delete
+
+                                            </button>
+
+
+                                        </form>
+
+
+                                    </div>
+
+
+                                </td>
+
+
+                            </tr>
+
+
+                        {% endfor %}
+
+
+                    </tbody>
+
+
+                </table>
+
+
+            </div>
+
+
+        {% else %}
+
+
+            <div class="empty-message">
+
+                No Learning Area performance levels found.
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- CLASS TEACHER LEVELS -->
+
+    <div class="type-section">
+
+
+        <div class="type-header class-header">
+
+
+            <h3>
+
+                <i class="fas fa-chalkboard-teacher"></i>
+
+                Class Teacher Performance Levels
+
+            </h3>
+
+
+            <span>
+
+                {{ grouped_levels['class_teacher']|length }}
+
+                Level(s)
+
+            </span>
+
+
+        </div>
+
+
+        {% if grouped_levels['class_teacher'] %}
+
+
+            <div class="table-container">
+
+
+                <table>
+
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Minimum Mark</th>
+
+                            <th>Maximum Mark</th>
+
+                            <th>Level</th>
+
+                            <th>Points</th>
+
+                            <th>Comment</th>
+
+                            <th>Actions</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                        {% for level in grouped_levels['class_teacher'] %}
+
+
+                            <tr>
+
+
+                                <td>
+
+                                    <span class="range-badge">
+
+                                        {{ level[1] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="range-badge">
+
+                                        {{ level[2] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="level-badge">
+
+                                        {{ level[3] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ level[4] }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ level[5] }}
+
+                                </td>
+
+
+                                <td>
+
+
+                                    <div class="action-buttons">
+
+
+                                        <a
+
+                                            href="{{ url_for(
+
+                                                'manage_performance_levels',
+
+                                                edit_id=level[0]
+
+                                            ) }}"
+
+                                            class="btn btn-primary"
+
+                                        >
+
+                                            <i class="fas fa-edit"></i>
+
+                                            Edit
+
+                                        </a>
+
+
+                                        <form
+
+                                            action="{{ url_for(
+
+                                                'delete_performance_level',
+
+                                                level_id=level[0]
+
+                                            ) }}"
+
+                                            method="POST"
+
+                                            style="display:inline;"
+
+                                            onsubmit="return confirm(
+
+                                                'Delete this performance level?'
+
+                                            );"
+
+                                        >
+
+
+                                            <button
+
+                                                type="submit"
+
+                                                class="btn btn-danger"
+
+                                            >
+
+                                                <i class="fas fa-trash"></i>
+
+                                                Delete
+
+                                            </button>
+
+
+                                        </form>
+
+
+                                    </div>
+
+
+                                </td>
+
+
+                            </tr>
+
+
+                        {% endfor %}
+
+
+                    </tbody>
+
+
+                </table>
+
+
+            </div>
+
+
+        {% else %}
+
+
+            <div class="empty-message">
+
+                No Class Teacher performance levels found.
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- PRINCIPAL LEVELS -->
+
+    <div class="type-section">
+
+
+        <div class="type-header principal-header">
+
+
+            <h3>
+
+                <i class="fas fa-user-tie"></i>
+
+                Principal Performance Levels
+
+            </h3>
+
+
+            <span>
+
+                {{ grouped_levels['principal']|length }}
+
+                Level(s)
+
+            </span>
+
+
+        </div>
+
+
+        {% if grouped_levels['principal'] %}
+
+
+            <div class="table-container">
+
+
+                <table>
+
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Minimum Mark</th>
+
+                            <th>Maximum Mark</th>
+
+                            <th>Level</th>
+
+                            <th>Points</th>
+
+                            <th>Comment</th>
+
+                            <th>Actions</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                        {% for level in grouped_levels['principal'] %}
+
+
+                            <tr>
+
+
+                                <td>
+
+                                    <span class="range-badge">
+
+                                        {{ level[1] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="range-badge">
+
+                                        {{ level[2] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="level-badge">
+
+                                        {{ level[3] }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ level[4] }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ level[5] }}
+
+                                </td>
+
+
+                                <td>
+
+
+                                    <div class="action-buttons">
+
+
+                                        <a
+
+                                            href="{{ url_for(
+
+                                                'manage_performance_levels',
+
+                                                edit_id=level[0]
+
+                                            ) }}"
+
+                                            class="btn btn-primary"
+
+                                        >
+
+                                            <i class="fas fa-edit"></i>
+
+                                            Edit
+
+                                        </a>
+
+
+                                        <form
+
+                                            action="{{ url_for(
+
+                                                'delete_performance_level',
+
+                                                level_id=level[0]
+
+                                            ) }}"
+
+                                            method="POST"
+
+                                            style="display:inline;"
+
+                                            onsubmit="return confirm(
+
+                                                'Delete this performance level?'
+
+                                            );"
+
+                                        >
+
+
+                                            <button
+
+                                                type="submit"
+
+                                                class="btn btn-danger"
+
+                                            >
+
+                                                <i class="fas fa-trash"></i>
+
+                                                Delete
+
+                                            </button>
+
+
+                                        </form>
+
+
+                                    </div>
+
+
+                                </td>
+
+
+                            </tr>
+
+
+                        {% endfor %}
+
+
+                    </tbody>
+
+
+                </table>
+
+
+            </div>
+
+
+        {% else %}
+
+
+            <div class="empty-message">
+
+                No Principal performance levels found.
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- TERM INFORMATION -->
+
+    <div class="term-info">
+
+
+        <h4>
+
+            <i class="fas fa-calendar-alt"></i>
+
+            Current Term Information
+
+        </h4>
+
+
+        <div class="term-grid">
+
+
+            <div class="term-item">
+
+                <strong>Term</strong>
+
+                {{ term_info.term }}
+
+            </div>
+
+
+            <div class="term-item">
+
+                <strong>Year</strong>
+
+                {{ term_info.year }}
+
+            </div>
+
+
+            <div class="term-item">
+
+                <strong>Principal</strong>
+
+                {{ term_info.principal }}
+
+            </div>
+
+
+            <div class="term-item">
+
+                <strong>Start Date</strong>
+
+                {{ term_info.start_date }}
+
+            </div>
+
+
+            <div class="term-item">
+
+                <strong>End Date</strong>
+
+                {{ term_info.end_date }}
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+    <!-- DELETE ALL -->
+
+    <form
+
+        action="{{ url_for(
+
+            'delete_all_performance_levels'
+
+        ) }}"
+
+        method="POST"
+
+        onsubmit="return confirm(
+
+            'Are you sure you want to delete ALL performance levels? This cannot be undone.'
+
+        );"
+
+    >
+
+        <button
+
+            type="submit"
+
+            class="btn btn-danger"
+
+        >
+
+            <i class="fas fa-trash-alt"></i>
+
+            Delete All Performance Levels
+
+        </button>
+
+
+        <a
+
+            href="{{ url_for('dashboard') }}"
+
+            class="btn btn-secondary"
+
+        >
+
+            <i class="fas fa-arrow-left"></i>
+
+            Back to Dashboard
+
+        </a>
+
+    </form>
+
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    :root {
+        --primary: #4682b4;
+        --primary-dark: #315f86;
+        --secondary: #5a9bd4;
+        --danger: #dc3545;
+        --light-bg: #f4f8fb;
+        --text-dark: #263238;
+    }
+
+    .dashboard-wrapper {
+        min-height: calc(100vh - 120px);
+        padding: 40px 20px;
+        background:
+            linear-gradient(135deg, rgba(70,130,180,0.08), rgba(255,255,255,0.95)),
+            var(--light-bg);
+    }
+
+    .dashboard-container {
+        max-width: 1000px;
+        margin: auto;
+    }
+
+    /* Header */
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 35px 30px;
+        border-radius: 18px;
+        margin-bottom: 30px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .dashboard-header::before,
+    .dashboard-header::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.10);
+    }
+
+    .dashboard-header::before {
+        width: 220px;
+        height: 220px;
+        right: -80px;
+        top: -100px;
+    }
+
+    .dashboard-header::after {
+        width: 150px;
+        height: 150px;
+        left: -70px;
+        bottom: -90px;
+    }
+
+    .header-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .header-icon {
+        width: 75px;
+        height: 75px;
+        background: rgba(255,255,255,0.18);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+    }
+
+    .dashboard-header h2 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .dashboard-header p {
+        margin: 0;
+        font-size: 1.05rem;
+        opacity: 0.95;
+    }
+
+    .username {
+        font-weight: bold;
+        color: #fff;
+    }
+
+    /* Cards */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 22px;
+    }
+
+    .dashboard-card {
+        background: white;
+        border-radius: 16px;
+        padding: 28px 22px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-dark);
+        box-shadow: 0 5px 18px rgba(0,0,0,0.08);
+        border: 1px solid rgba(70,130,180,0.08);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: var(--primary);
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+        color: var(--primary-dark);
+    }
+
+    .card-icon {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(70,130,180,0.12);
+        color: var(--primary);
+        font-size: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .dashboard-card:hover .card-icon {
+        background: var(--primary);
+        color: white;
+        transform: scale(1.08);
+    }
+
+    .dashboard-card h4 {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .dashboard-card p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* Logout */
+    .logout-card {
+        border-top-color: var(--danger);
+    }
+
+    .logout-card::before {
+        background: var(--danger);
+    }
+
+    .logout-card .card-icon {
+        background: rgba(220,53,69,0.12);
+        color: var(--danger);
+    }
+
+    .logout-card:hover {
+        color: #b02a37;
+    }
+
+    .logout-card:hover .card-icon {
+        background: var(--danger);
+        color: white;
+    }
+
+    /* Footer */
+    .dashboard-footer {
+        text-align: center;
+        margin-top: 35px;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 600px) {
+        .dashboard-wrapper {
+            padding: 25px 15px;
+        }
+
+        .dashboard-header {
+            padding: 28px 22px;
+        }
+
+        .dashboard-header h2 {
+            font-size: 1.6rem;
+        }
+
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="dashboard-wrapper">
+    <div class="dashboard-container">
+
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+
+                <h2>Teacher Dashboard</h2>
+
+                <p>
+                    Welcome back,
+                    <span class="username">{{ current_user.username }}</span>!
+                    Manage your teaching activities from one place.
+                </p>
+            </div>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="dashboard-grid">
+
+            <a href="{{ url_for('enter_marks') }}" class="dashboard-card">
+                <div class="card-icon">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <h4>Enter Marks</h4>
+                <p>Record and manage learner assessment marks.</p>
+            </a>
+
+            <a href="{{ url_for('send_message') }}" class="dashboard-card">
+                <div class="card-icon">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+                <h4>Send Message</h4>
+                <p>Communicate with administrators and other users.</p>
+            </a>
+
+            <a href="{{ url_for('view_messages') }}" class="dashboard-card">
+                <div class="card-icon">
+                    <i class="fas fa-inbox"></i>
+                </div>
+                <h4>View Messages</h4>
+                <p>Read and manage your received messages.</p>
+            </a>
+
+            <a href="{{ url_for('logout') }}" class="dashboard-card logout-card">
+                <div class="card-icon">
+                    <i class="fas fa-sign-out-alt"></i>
+                </div>
+                <h4>Logout</h4>
+                <p>Securely sign out of your teacher account.</p>
+            </a>
+
+        </div>
+
+        <div class="dashboard-footer">
+            <i class="fas fa-shield-alt"></i>
+            Secure Teacher Portal
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}
+Home - Jonyo Junior Secondary School
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+
+/* HERO SECTION */
+
+.hero-section {
+
+    min-height: 600px;
+
+    background:
+
+        linear-gradient(
+
+            rgba(0, 70, 120, 0.82),
+
+            rgba(0, 130, 150, 0.75)
+
+        ),
+
+        url("{{ url_for('static', filename='school.jpeg') }}");
+
+    background-size: cover;
+
+    background-position: center;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    text-align: center;
+
+    color: white;
+
+}
+
+
+.hero-content {
+
+    max-width: 1000px;
+
+    padding: 30px;
+
+}
+
+
+/* LOGO */
+
+.school-logo {
+
+    width: 300px;
+
+    height: 90px;
+
+    object-fit: contain;
+
+    background: white;
+
+    border: 5px solid #ffca28;
+
+    border-radius: 50%;
+
+    padding: 5px;
+
+    margin-bottom: 25px;
+
+}
+
+
+/* SCHOOL NAME */
+
+.hero-content h1 {
+
+    font-size: 3.5rem;
+
+    font-weight: 900;
+
+    text-shadow:
+
+        4px 4px 5px rgba(0,0,0,0.6);
+
+}
+
+
+/* MOTTO */
+
+.motto {
+
+    color: #ffca28;
+
+    font-size: 1.5rem;
+
+    font-weight: bold;
+
+    margin: 20px 0;
+
+}
+
+
+/* BUTTON */
+
+.explore-btn {
+
+    display: inline-block;
+
+    padding: 16px 35px;
+
+    border-radius: 40px;
+
+    background:
+
+        linear-gradient(
+
+            45deg,
+
+            #ff9800,
+
+            #f44336
+
+        );
+
+    color: white;
+
+    text-decoration: none;
+
+    font-weight: bold;
+
+    font-size: 1.1rem;
+
+    margin-top: 20px;
+
+    transition: 0.3s;
+
+}
+
+
+.explore-btn:hover {
+
+    color: white;
+
+    transform: translateY(-5px);
+
+}
+
+
+/* NAVIGATION */
+
+.home-navigation {
+
+    background:
+
+        linear-gradient(
+
+            90deg,
+
+            #00796b,
+
+            #1976d2,
+
+            #6a1b9a
+
+        );
+
+    padding: 20px;
+
+    text-align: center;
+
+}
+
+
+.home-navigation a {
+
+    color: white;
+
+    text-decoration: none;
+
+    font-weight: bold;
+
+    margin: 0 25px;
+
+}
+
+
+.home-navigation a:hover {
+
+    color: #ffca28;
+
+}
+
+
+@media (max-width: 768px) {
+
+    .hero-content h1 {
+
+        font-size: 2.2rem;
+
+    }
+
+
+    .home-navigation a {
+
+        display: inline-block;
+
+        margin: 8px;
+
+    }
+
+}
+
+</style>
+
+
+<!-- HERO -->
+
+<section class="hero-section">
+
+    <div class="hero-content">
+
+
+        <img
+
+            src="{{ url_for('static', filename='logo.png') }}"
+
+            alt="Jonyo Junior Secondary School Logo"
+
+            class="school-logo"
+
+        >
+
+
+        <h1>
+
+            JONYO JUNIOR SECONDARY SCHOOL
+
+        </h1>
+
+
+        <div class="motto">
+
+            ⭐ STRIVE FOR SUCCESS ⭐
+
+        </div>
+
+
+        {% if term_info %}
+
+            <p>
+
+                <strong>
+
+                    {{ term_info.get('year', '2026') }}
+
+                    -
+
+                    {{ term_info.get('term', 'Term 2') }}
+
+                </strong>
+
+            </p>
+
+
+            <p>
+
+                Principal:
+
+                <strong>
+
+                    {{ term_info.get('principal', 'MANASSE KOLA') }}
+
+                </strong>
+
+            </p>
+
+
+            <p>
+
+                Term Dates:
+
+                {{ term_info.get('start_date', 'Not Set') }}
+
+                to
+
+                {{ term_info.get('end_date', 'Not Set') }}
+
+            </p>
+
+        {% endif %}
+
+
+        <a
+
+            href="{{ url_for('about') }}"
+
+            class="explore-btn"
+
+        >
+
+            <i class="fas fa-school"></i>
+
+            Explore Our School
+
+        </a>
+
+
+    </div>
+
+</section>
+
+
+<!-- NAVIGATION -->
+
+<nav class="home-navigation">
+
+    <a href="{{ url_for('index') }}">
+
+        <i class="fas fa-home"></i>
+
+        Home
+
+    </a>
+
+
+    <a href="{{ url_for('about') }}">
+
+        <i class="fas fa-info-circle"></i>
+
+        About
+
+    </a>
+
+
+    <a href="{{ url_for('contact') }}">
+
+        <i class="fas fa-phone"></i>
+
+        Contact
+
+    </a>
+
+
+    {% if current_user.is_authenticated %}
+
+        <a href="{{ url_for('announcements') }}">
+
+            <i class="fas fa-bullhorn"></i>
+
+            Announcements
+
+        </a>
+
+
+        <a href="{{ url_for('dashboard') }}">
+
+            <i class="fas fa-tachometer-alt"></i>
+
+            Dashboard
+
+        </a>
+
+
+        <a href="{{ url_for('logout') }}">
+
+            <i class="fas fa-sign-out-alt"></i>
+
+            Logout
+
+        </a>
+
+    {% else %}
+
+        <a href="{{ url_for('login') }}">
+
+            <i class="fas fa-sign-in-alt"></i>
+
+            Login
+
+        </a>
+
+    {% endif %}
+
+</nav>
+
+
+{% endblock %}

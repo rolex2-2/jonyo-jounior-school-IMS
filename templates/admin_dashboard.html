@@ -1,0 +1,1905 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+/* =========================================
+   DASHBOARD PAGE
+========================================= */
+
+.dashboard-page {
+
+    padding: 35px 15px 60px;
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #e0f7fa,
+
+            #f3e5f5,
+
+            #fff3e0
+
+        );
+
+    min-height: 100vh;
+
+}
+
+
+/* =========================================
+   DASHBOARD HEADER
+========================================= */
+
+.dashboard-header {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #00695c,
+
+            #1565c0,
+
+            #6a1b9a
+
+        );
+
+    color: white;
+
+    padding: 35px;
+
+    border-radius: 25px;
+
+    margin-bottom: 30px;
+
+    box-shadow:
+
+        0 10px 30px rgba(0, 0, 0, 0.25);
+
+    position: relative;
+
+    overflow: hidden;
+
+}
+
+
+.dashboard-header::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 250px;
+
+    height: 250px;
+
+    background: rgba(255,255,255,0.08);
+
+    border-radius: 50%;
+
+    top: -100px;
+
+    right: -60px;
+
+}
+
+
+.dashboard-header::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 180px;
+
+    height: 180px;
+
+    background: rgba(255,255,255,0.08);
+
+    border-radius: 50%;
+
+    bottom: -100px;
+
+    left: 20%;
+
+}
+
+
+.dashboard-header h2 {
+
+    font-weight: 800;
+
+    margin-bottom: 10px;
+
+    position: relative;
+
+    z-index: 1;
+
+}
+
+
+.dashboard-header p {
+
+    margin: 0;
+
+    font-size: 1.1rem;
+
+    position: relative;
+
+    z-index: 1;
+
+}
+
+
+.dashboard-header i {
+
+    color: #ffca28;
+
+    margin-right: 10px;
+
+}
+
+
+/* =========================================
+   QUICK STATISTICS
+========================================= */
+
+.dashboard-stats {
+
+    margin-bottom: 35px;
+
+}
+
+
+.stat-box {
+
+    padding: 25px 20px;
+
+    border-radius: 20px;
+
+    color: white;
+
+    min-height: 145px;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+
+        0 8px 20px rgba(0,0,0,0.18);
+
+    transition: 0.4s;
+
+    position: relative;
+
+    overflow: hidden;
+
+}
+
+
+.stat-box:hover {
+
+    transform: translateY(-8px);
+
+}
+
+
+.stat-box i {
+
+    font-size: 35px;
+
+    margin-bottom: 12px;
+
+}
+
+
+.stat-box h4 {
+
+    font-weight: 800;
+
+    margin: 0;
+
+}
+
+
+.stat-box p {
+
+    margin: 5px 0 0;
+
+}
+
+
+.stat-box::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 100px;
+
+    height: 100px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,0.12);
+
+    right: -25px;
+
+    bottom: -35px;
+
+}
+
+
+.stat-users {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #00695c,
+
+            #26a69a
+
+        );
+
+}
+
+
+.stat-academic {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #1565c0,
+
+            #42a5f5
+
+        );
+
+}
+
+
+.stat-finance {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #ef6c00,
+
+            #ffb300
+
+        );
+
+}
+
+
+.stat-system {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #6a1b9a,
+
+            #ab47bc
+
+        );
+
+}
+
+
+/* =========================================
+   MAIN DASHBOARD CONTAINER
+========================================= */
+
+.dashboard-container {
+
+    background: rgba(255,255,255,0.95);
+
+    padding: 30px;
+
+    border-radius: 25px;
+
+    box-shadow:
+
+        0 8px 25px rgba(0,0,0,0.15);
+
+}
+
+
+/* =========================================
+   SECTION TITLES
+========================================= */
+
+.dashboard-section-title {
+
+    color: #00695c;
+
+    font-weight: 800;
+
+    margin: 35px 0 20px;
+
+    padding-bottom: 12px;
+
+    border-bottom: 3px solid #e0e0e0;
+
+}
+
+
+.dashboard-section-title i {
+
+    color: #ff9800;
+
+    margin-right: 10px;
+
+}
+
+
+/* =========================================
+   ACTION BUTTON GRID
+========================================= */
+
+.dashboard-buttons {
+
+    display: grid;
+
+    grid-template-columns:
+
+        repeat(auto-fit, minmax(220px, 1fr));
+
+    gap: 18px;
+
+    margin-bottom: 35px;
+
+}
+
+
+/* =========================================
+   DASHBOARD ACTION CARDS
+========================================= */
+
+.dashboard-action {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    min-height: 90px;
+
+    padding: 18px;
+
+    border-radius: 18px;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-weight: 700;
+
+    box-shadow:
+
+        0 6px 15px rgba(0,0,0,0.15);
+
+    transition: 0.4s;
+
+}
+
+
+.dashboard-action:hover {
+
+    color: white;
+
+    transform:
+
+        translateY(-6px)
+
+        scale(1.02);
+
+    box-shadow:
+
+        0 12px 25px rgba(0,0,0,0.25);
+
+}
+
+
+.dashboard-action i {
+
+    font-size: 30px;
+
+    min-width: 40px;
+
+    text-align: center;
+
+}
+
+
+.action-green {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #00695c,
+
+            #26a69a
+
+        );
+
+}
+
+
+.action-blue {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #1565c0,
+
+            #42a5f5
+
+        );
+
+}
+
+
+.action-purple {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #6a1b9a,
+
+            #ab47bc
+
+        );
+
+}
+
+
+.action-orange {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #ef6c00,
+
+            #ffb300
+
+        );
+
+}
+
+
+.action-pink {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #ad1457,
+
+            #ec407a
+
+        );
+
+}
+
+
+.action-indigo {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #283593,
+
+            #5c6bc0
+
+        );
+
+}
+
+
+.action-dark {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #263238,
+
+            #546e7a
+
+        );
+
+}
+
+
+/* =========================================
+   SPECIAL DANGER BUTTON
+========================================= */
+
+.action-danger {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #b71c1c,
+
+            #ef5350
+
+        );
+
+    border: none;
+
+    width: 100%;
+
+    cursor: pointer;
+
+}
+
+
+/* =========================================
+   SCHOOL INFORMATION CARDS
+========================================= */
+
+.info-card {
+
+    padding: 25px;
+
+    border-radius: 18px;
+
+    min-height: 210px;
+
+    color: white;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+
+        0 6px 18px rgba(0,0,0,0.15);
+
+    transition: 0.4s;
+
+}
+
+
+.info-card:hover {
+
+    transform: translateY(-6px);
+
+}
+
+
+.info-card h5 {
+
+    font-weight: 800;
+
+    margin-bottom: 15px;
+
+}
+
+
+.info-card p {
+
+    line-height: 1.7;
+
+}
+
+
+.info-mission {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #00695c,
+
+            #26a69a
+
+        );
+
+}
+
+
+.info-vision {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #1565c0,
+
+            #42a5f5
+
+        );
+
+}
+
+
+.info-about {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #ef6c00,
+
+            #ffb300
+
+        );
+
+}
+
+
+.info-contact {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #6a1b9a,
+
+            #ab47bc
+
+        );
+
+}
+
+
+/* =========================================
+   ANNOUNCEMENTS
+========================================= */
+
+.announcement {
+
+    background: white;
+
+    border-left: 6px solid #ff9800;
+
+    padding: 22px;
+
+    margin-bottom: 18px;
+
+    border-radius: 12px;
+
+    box-shadow:
+
+        0 5px 15px rgba(0,0,0,0.1);
+
+    transition: 0.3s;
+
+}
+
+
+.announcement:hover {
+
+    transform: translateX(5px);
+
+}
+
+
+.announcement-content {
+
+    font-size: 1.1rem;
+
+    font-weight: 600;
+
+    color: #37474f;
+
+    margin-bottom: 10px;
+
+}
+
+
+.announcement-date {
+
+    color: #78909c;
+
+    font-size: 0.9rem;
+
+}
+
+
+/* =========================================
+   DELETE BUTTON
+========================================= */
+
+.delete-btn {
+
+    margin-top: 15px;
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #c62828,
+
+            #ef5350
+
+        );
+
+    border: none;
+
+    color: white;
+
+    padding: 8px 15px;
+
+    border-radius: 20px;
+
+}
+
+
+.delete-btn:hover {
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #8e0000,
+
+            #c62828
+
+        );
+
+}
+
+
+/* =========================================
+   EMPTY ANNOUNCEMENT
+========================================= */
+
+.empty-announcement {
+
+    padding: 25px;
+
+    text-align: center;
+
+    border-radius: 15px;
+
+    background: #e3f2fd;
+
+    color: #1565c0;
+
+    font-weight: 600;
+
+}
+
+
+/* =========================================
+   MOBILE RESPONSIVENESS
+========================================= */
+
+@media (max-width: 768px) {
+
+    .dashboard-header {
+
+        padding: 25px 20px;
+
+    }
+
+
+    .dashboard-header h2 {
+
+        font-size: 1.5rem;
+
+    }
+
+
+    .dashboard-container {
+
+        padding: 20px 15px;
+
+    }
+
+
+    .dashboard-buttons {
+
+        grid-template-columns: 1fr;
+
+    }
+
+}
+
+</style>
+
+
+<!-- =========================================
+     DASHBOARD PAGE
+========================================= -->
+
+<div class="dashboard-page">
+
+
+    <div class="container">
+
+
+        <!-- =====================================
+             DASHBOARD HEADER
+        ====================================== -->
+
+        <div class="dashboard-header">
+
+
+            <h2>
+
+                <i class="fas fa-tachometer-alt"></i>
+
+                Admin Dashboard
+
+            </h2>
+
+
+            <p>
+
+                Welcome back,
+
+                <strong>
+
+                    {{ current_user.username | default('Admin') }}
+
+                </strong>
+
+                👋
+
+            </p>
+
+
+            <p>
+
+                Manage Jonyo Junior Secondary School from one powerful dashboard.
+
+            </p>
+
+
+        </div>
+
+
+        <!-- =====================================
+             FLASH MESSAGES
+        ====================================== -->
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+
+
+            {% if messages %}
+
+
+                {% for category, message in messages %}
+
+
+                    <div
+
+                        class="alert
+
+                        alert-{{ category }}
+
+                        alert-dismissible
+
+                        fade show"
+
+                        role="alert"
+
+                    >
+
+
+                        {{ message }}
+
+
+                        <button
+
+                            type="button"
+
+                            class="btn-close"
+
+                            data-bs-dismiss="alert"
+
+                        >
+
+                        </button>
+
+
+                    </div>
+
+
+                {% endfor %}
+
+
+            {% endif %}
+
+
+        {% endwith %}
+
+
+        <!-- =====================================
+             QUICK OVERVIEW
+        ====================================== -->
+
+        <div class="row dashboard-stats">
+
+
+            <div class="col-md-3">
+
+
+                <div class="stat-box stat-users">
+
+
+                    <i class="fas fa-users"></i>
+
+
+                    <h4>Users</h4>
+
+
+                    <p>Manage school users</p>
+
+
+                </div>
+
+
+            </div>
+
+
+            <div class="col-md-3">
+
+
+                <div class="stat-box stat-academic">
+
+
+                    <i class="fas fa-graduation-cap"></i>
+
+
+                    <h4>Academics</h4>
+
+
+                    <p>Manage learning and results</p>
+
+
+                </div>
+
+
+            </div>
+
+
+            <div class="col-md-3">
+
+
+                <div class="stat-box stat-finance">
+
+
+                    <i class="fas fa-money-bill-wave"></i>
+
+
+                    <h4>Finance</h4>
+
+
+                    <p>Manage fees and statements</p>
+
+
+                </div>
+
+
+            </div>
+
+
+            <div class="col-md-3">
+
+
+                <div class="stat-box stat-system">
+
+
+                    <i class="fas fa-cogs"></i>
+
+
+                    <h4>System</h4>
+
+
+                    <p>Manage school settings</p>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+        <!-- =====================================
+             DASHBOARD CONTENT
+        ====================================== -->
+
+        <div class="dashboard-container">
+
+
+            <!-- =================================
+                 USER MANAGEMENT
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-users-cog"></i>
+
+
+                User Management
+
+
+            </h4>
+
+
+            <div class="dashboard-buttons">
+
+
+                <a
+
+                    href="{{ url_for('register_parent') }}"
+
+                    class="dashboard-action action-green"
+
+                >
+
+                    <i class="fas fa-user"></i>
+
+                    Register Parent
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('link_parent_student') }}"
+
+                    class="dashboard-action action-blue"
+
+                >
+
+                    <i class="fas fa-link"></i>
+
+                    Link Parent to Student
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('view_links') }}"
+
+                    class="dashboard-action action-purple"
+
+                >
+
+                    <i class="fas fa-list"></i>
+
+                    View Parent Links
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('register_teacher') }}"
+
+                    class="dashboard-action action-orange"
+
+                >
+
+                    <i class="fas fa-user-plus"></i>
+
+                    Register Teacher
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('register_student') }}"
+
+                    class="dashboard-action action-pink"
+
+                >
+
+                    <i class="fas fa-user-graduate"></i>
+
+                    Register Student
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('register_bursar') }}"
+
+                    class="dashboard-action action-indigo"
+
+                >
+
+                    <i class="fas fa-user-tie"></i>
+
+                    Register Bursar
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('view_users') }}"
+
+                    class="dashboard-action action-dark"
+
+                >
+
+                    <i class="fas fa-users"></i>
+
+                    View All Users
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('upload_bulk_students') }}"
+
+                    class="dashboard-action action-green"
+
+                >
+
+                    <i class="fas fa-upload"></i>
+
+                    Upload Bulk Students
+
+                </a>
+
+
+            </div>
+
+
+            <!-- =================================
+                 ACADEMIC MANAGEMENT
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-graduation-cap"></i>
+
+
+                Academic Management
+
+
+            </h4>
+
+
+            <div class="dashboard-buttons">
+
+
+                <a
+
+                    href="{{ url_for('enter_marks') }}"
+
+                    class="dashboard-action action-blue"
+
+                >
+
+                    <i class="fas fa-edit"></i>
+
+                    Enter Marks
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('view_marks') }}"
+
+                    class="dashboard-action action-purple"
+
+                >
+
+                    <i class="fas fa-table"></i>
+
+                    View Marks
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('assign_teachers') }}"
+
+                    class="dashboard-action action-green"
+
+                >
+
+                    <i class="fas fa-chalkboard-teacher"></i>
+
+                    Assign Teachers
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('assign_class_teacher') }}"
+
+                    class="dashboard-action action-orange"
+
+                >
+
+                    <i class="fas fa-user-check"></i>
+
+                    Assign Class Teacher
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('manage_learning_areas') }}"
+
+                    class="dashboard-action action-indigo"
+
+                >
+
+                    <i class="fas fa-book"></i>
+
+                    Learning Areas
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('manage_performance_levels') }}"
+
+                    class="dashboard-action action-pink"
+
+                >
+
+                    <i class="fas fa-star"></i>
+
+                    Performance Levels
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('promote_learners') }}"
+
+                    class="dashboard-action action-orange"
+
+                >
+
+                    <i class="fas fa-arrow-up"></i>
+
+                    Promote Learners
+
+                </a>
+
+
+            </div>
+
+
+            <!-- =================================
+                 FINANCE MANAGEMENT
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-money-bill-wave"></i>
+
+
+                Finance Management
+
+
+            </h4>
+
+
+            <div class="dashboard-buttons">
+
+
+                <a
+
+                    href="{{ url_for('manage_fees') }}"
+
+                    class="dashboard-action action-green"
+
+                >
+
+                    <i class="fas fa-money-bill"></i>
+
+                    Manage Fees
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('download_fee_statement_excel') }}"
+
+                    class="dashboard-action action-orange"
+
+                >
+
+                    <i class="fas fa-file-excel"></i>
+
+                    Fee Statements
+
+                </a>
+
+
+            </div>
+
+
+            <!-- =================================
+                 REPORTS
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-file-alt"></i>
+
+
+                Reports & Downloads
+
+
+            </h4>
+
+
+            <div class="dashboard-buttons">
+
+
+                <a
+
+                    href="{{ url_for('download_report_card') }}"
+
+                    class="dashboard-action action-blue"
+
+                >
+
+                    <i class="fas fa-file-download"></i>
+
+                    Download Report Cards
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('download_results') }}"
+
+                    class="dashboard-action action-green"
+
+                >
+
+                    <i class="fas fa-file-excel"></i>
+
+                    Download Results
+
+                </a>
+
+
+            </div>
+
+
+            <!-- =================================
+                 SCHOOL MANAGEMENT
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-school"></i>
+
+
+                School Management
+
+
+            </h4>
+
+
+            <div class="dashboard-buttons">
+
+
+                <a
+
+                    href="{{ url_for('update_term_info') }}"
+
+                    class="dashboard-action action-blue"
+
+                >
+
+                    <i class="fas fa-calendar"></i>
+
+                    Update Term Information
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('edit_content') }}"
+
+                    class="dashboard-action action-purple"
+
+                >
+
+                    <i class="fas fa-pencil-alt"></i>
+
+                    Edit Website Content
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('admin_notes') }}"
+
+                    class="dashboard-action action-orange"
+
+                >
+
+                    <i class="fas fa-sticky-note"></i>
+
+                    Manage Notes
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('add_announcement') }}"
+
+                    class="dashboard-action action-pink"
+
+                >
+
+                    <i class="fas fa-bullhorn"></i>
+
+                    Add Announcement
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('announcements') }}"
+
+                    class="dashboard-action action-indigo"
+
+                >
+
+                    <i class="fas fa-bullhorn"></i>
+
+                    View Announcements
+
+                </a>
+
+
+            </div>
+
+
+            <!-- =================================
+                 COMMUNICATION
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-comments"></i>
+
+
+                Communication
+
+
+            </h4>
+
+
+            <div class="dashboard-buttons">
+
+
+                <a
+
+                    href="{{ url_for('send_message') }}"
+
+                    class="dashboard-action action-blue"
+
+                >
+
+                    <i class="fas fa-envelope"></i>
+
+                    Send Message
+
+                </a>
+
+
+                <a
+
+                    href="{{ url_for('view_messages') }}"
+
+                    class="dashboard-action action-purple"
+
+                >
+
+                    <i class="fas fa-inbox"></i>
+
+                    View Messages
+
+                </a>
+
+
+            </div>
+
+
+            <!-- =================================
+                 SCHOOL INFORMATION
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-info-circle"></i>
+
+
+                School Information
+
+
+            </h4>
+
+
+            <div class="row">
+
+
+                <div class="col-md-3">
+
+
+                    <div class="info-card info-mission">
+
+
+                        <h5>
+
+                            <i class="fas fa-bullseye"></i>
+
+                            Mission
+
+                        </h5>
+
+
+                        <p>
+
+                            {{ mission_content | safe | default(
+
+                            'Our mission is to provide quality education.',
+
+                            true
+
+                            ) }}
+
+
+                        </p>
+
+
+                    </div>
+
+
+                </div>
+
+
+                <div class="col-md-3">
+
+
+                    <div class="info-card info-vision">
+
+
+                        <h5>
+
+                            <i class="fas fa-eye"></i>
+
+                            Vision
+
+                        </h5>
+
+
+                        <p>
+
+                            {{ vision_content | safe | default(
+
+                            'To be a leading institution in holistic education.',
+
+                            true
+
+                            ) }}
+
+
+                        </p>
+
+
+                    </div>
+
+
+                </div>
+
+
+                <div class="col-md-3">
+
+
+                    <div class="info-card info-about">
+
+
+                        <h5>
+
+                            <i class="fas fa-school"></i>
+
+                            About
+
+                        </h5>
+
+
+                        <p>
+
+                            {{ about_content | safe | default(
+
+                            'Welcome to Jonyo Junior Secondary School.',
+
+                            true
+
+                            ) }}
+
+
+                        </p>
+
+
+                    </div>
+
+
+                </div>
+
+
+                <div class="col-md-3">
+
+
+                    <div class="info-card info-contact">
+
+
+                        <h5>
+
+                            <i class="fas fa-phone"></i>
+
+                            Contact
+
+                        </h5>
+
+
+                        <p>
+
+                            {{ contact_content | safe | default(
+
+                            'Contact us at info@jonyojs.ac.ke',
+
+                            true
+
+                            ) }}
+
+
+                        </p>
+
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
+            <!-- =================================
+                 ANNOUNCEMENTS
+            ================================== -->
+
+            <h4 class="dashboard-section-title">
+
+
+                <i class="fas fa-bullhorn"></i>
+
+
+                Recent Announcements
+
+
+            </h4>
+
+
+            {% if recent_announcements %}
+
+
+                {% for announcement in recent_announcements %}
+
+
+                    <div class="announcement">
+
+
+                        <div class="announcement-content">
+
+
+                            {{ announcement.content }}
+
+
+                        </div>
+
+
+                        <div class="announcement-date">
+
+
+                            <i class="fas fa-calendar-alt"></i>
+
+
+                            Posted on:
+
+                            {{ announcement.date }}
+
+
+                        </div>
+
+
+                        {% if current_user.role == 'admin' %}
+
+
+                            <form
+
+                                action="{{ url_for('delete_announcement') }}"
+
+                                method="POST"
+
+                                onsubmit="return confirm(
+
+                                'Are you sure you want to delete this announcement?'
+
+                                );"
+
+                            >
+
+
+                                <input
+
+                                    type="hidden"
+
+                                    name="announcement_id"
+
+                                    value="{{ announcement.id }}"
+
+                                >
+
+
+                                <button
+
+                                    type="submit"
+
+                                    class="delete-btn"
+
+                                >
+
+
+                                    <i class="fas fa-trash"></i>
+
+                                    Delete
+
+                                </button>
+
+
+                            </form>
+
+
+                        {% endif %}
+
+
+                    </div>
+
+
+                {% endfor %}
+
+
+            {% else %}
+
+
+                <div class="empty-announcement">
+
+
+                    <i class="fas fa-info-circle"></i>
+
+                    No recent announcements available.
+
+                </div>
+
+
+            {% endif %}
+
+
+            <!-- =================================
+                 LOGOUT
+            ================================== -->
+
+            <div class="text-center mt-5">
+
+
+                <a
+
+                    href="{{ url_for('logout') }}"
+
+                    class="dashboard-action action-danger d-inline-flex"
+
+                    style="width: auto; padding: 15px 40px;"
+
+                >
+
+
+                    <i class="fas fa-sign-out-alt"></i>
+
+                    Logout
+
+                </a>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+{% endblock %}

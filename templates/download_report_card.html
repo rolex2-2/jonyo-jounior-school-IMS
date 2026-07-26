@@ -1,0 +1,1041 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+/* ===============================
+   MAIN PAGE BACKGROUND
+================================ */
+
+.report-page {
+    min-height: 100vh;
+    padding: 50px 15px;
+    position: relative;
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eaf6ff 0%,
+            #d9efff 45%,
+            #f8fcff 100%
+        );
+}
+
+
+/* Decorative circles */
+
+.report-page::before,
+.report-page::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    z-index: 0;
+    opacity: 0.35;
+}
+
+.report-page::before {
+    width: 350px;
+    height: 350px;
+    background: #87ceeb;
+    top: -120px;
+    left: -120px;
+}
+
+.report-page::after {
+    width: 450px;
+    height: 450px;
+    background: #4682b4;
+    bottom: -200px;
+    right: -150px;
+}
+
+
+/* ===============================
+   MAIN CARD
+================================ */
+
+.form-container {
+    max-width: 850px;
+    margin: auto;
+    position: relative;
+    z-index: 1;
+
+    background: rgba(255, 255, 255, 0.96);
+
+    padding: 40px;
+
+    border-radius: 25px;
+
+    box-shadow:
+        0 15px 45px rgba(0, 0, 0, 0.18);
+
+    border-top: 8px solid #4682b4;
+
+    animation: slideUp 0.8s ease;
+}
+
+
+/* Animation */
+
+@keyframes slideUp {
+
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+
+/* ===============================
+   HEADER
+================================ */
+
+.page-header {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+
+.icon-circle {
+
+    width: 95px;
+    height: 95px;
+
+    margin: 0 auto 18px;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 2.8rem;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            #4682b4,
+            #87ceeb
+        );
+
+    box-shadow:
+        0 8px 20px rgba(70, 130, 180, 0.4);
+
+    animation: floating 3s ease-in-out infinite;
+}
+
+
+@keyframes floating {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+
+}
+
+
+.page-header h3 {
+
+    font-size: 2rem;
+
+    font-weight: 800;
+
+    color: #1f4e79;
+
+    margin-bottom: 10px;
+
+}
+
+
+.page-header p {
+
+    color: #6c757d;
+
+    font-size: 1.05rem;
+
+}
+
+
+/* ===============================
+   FORM
+================================ */
+
+.form-group {
+
+    margin-bottom: 25px;
+
+}
+
+
+label {
+
+    display: block;
+
+    margin-bottom: 9px;
+
+    font-weight: 700;
+
+    color: #1f4e79;
+
+}
+
+
+label i {
+
+    color: #4682b4;
+
+    margin-right: 8px;
+
+}
+
+
+.form-select,
+.form-control {
+
+    width: 100%;
+
+    padding: 14px 16px;
+
+    border-radius: 12px;
+
+    border: 1px solid #ced4da;
+
+    background-color: #f8fcff;
+
+    font-size: 1rem;
+
+    transition: all 0.3s ease;
+
+}
+
+
+.form-select:hover,
+.form-control:hover {
+
+    border-color: #87ceeb;
+
+}
+
+
+.form-select:focus,
+.form-control:focus {
+
+    outline: none;
+
+    background-color: white;
+
+    border-color: #4682b4;
+
+    box-shadow:
+        0 0 0 4px rgba(70, 130, 180, 0.15);
+
+}
+
+
+/* ===============================
+   HELP TEXT
+================================ */
+
+.form-text {
+
+    display: block;
+
+    margin-top: 7px;
+
+    color: #6c757d;
+
+    font-size: 0.88rem;
+
+}
+
+
+/* ===============================
+   ALERTS
+================================ */
+
+.alert {
+
+    padding: 15px 20px;
+
+    border-radius: 12px;
+
+    margin-bottom: 22px;
+
+    border: none;
+
+}
+
+
+.alert-success {
+
+    background: #d1e7dd;
+
+    color: #0f5132;
+
+}
+
+
+.alert-danger {
+
+    background: #f8d7da;
+
+    color: #842029;
+
+}
+
+
+.alert-warning {
+
+    background: #fff3cd;
+
+    color: #664d03;
+
+}
+
+
+/* ===============================
+   DOWNLOAD BUTTONS
+================================ */
+
+.btn-primary,
+.btn-secondary-download {
+
+    width: 100%;
+
+    padding: 16px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    font-size: 1.1rem;
+
+    font-weight: 700;
+
+    color: white;
+
+    margin-bottom: 12px;
+
+    transition: all 0.3s ease;
+
+}
+
+
+.btn-primary {
+
+    background:
+        linear-gradient(
+            135deg,
+            #4682b4,
+            #5a9bd4
+        );
+
+    box-shadow:
+        0 7px 18px rgba(70, 130, 180, 0.35);
+}
+
+
+.btn-primary:hover {
+
+    transform: translateY(-3px);
+
+    background:
+        linear-gradient(
+            135deg,
+            #356b96,
+            #4682b4
+        );
+
+    box-shadow:
+        0 12px 25px rgba(70, 130, 180, 0.45);
+}
+
+
+.btn-secondary-download {
+
+    background:
+        linear-gradient(
+            135deg,
+            #2e8b57,
+            #3cb371
+        );
+
+    box-shadow:
+        0 7px 18px rgba(46, 139, 87, 0.35);
+}
+
+
+.btn-secondary-download:hover {
+
+    transform: translateY(-3px);
+
+    background:
+        linear-gradient(
+            135deg,
+            #256b43,
+            #2e8b57
+        );
+
+    box-shadow:
+        0 12px 25px rgba(46, 139, 87, 0.45);
+}
+
+
+.btn-primary i,
+.btn-secondary-download i {
+
+    margin-right: 10px;
+
+}
+
+
+/* ===============================
+   LOADING MESSAGE
+================================ */
+
+#loadingSpinner {
+
+    display: none;
+
+    text-align: center;
+
+    margin-top: 18px;
+
+    color: #4682b4;
+
+    font-weight: 700;
+
+}
+
+
+#loadingSpinner i {
+
+    margin-right: 8px;
+
+}
+
+
+/* ===============================
+   INFORMATION BOX
+================================ */
+
+.info-note {
+
+    margin-top: 30px;
+
+    padding: 20px;
+
+    border-radius: 15px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eef8ff,
+            #f8fcff
+        );
+
+    border-left: 6px solid #4682b4;
+
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.06);
+
+}
+
+
+.info-note i {
+
+    color: #4682b4;
+
+    font-size: 1.2rem;
+
+    margin-right: 8px;
+
+}
+
+
+/* ===============================
+   DECORATIVE FEATURE BOXES
+================================ */
+
+.features {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 15px;
+
+    margin-bottom: 30px;
+
+}
+
+
+.feature-box {
+
+    text-align: center;
+
+    padding: 18px 10px;
+
+    border-radius: 15px;
+
+    background: #f5fbff;
+
+    border: 1px solid #d8edf9;
+
+    transition: all 0.3s ease;
+
+}
+
+
+.feature-box:hover {
+
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 8px 18px rgba(70, 130, 180, 0.15);
+
+}
+
+
+.feature-box i {
+
+    font-size: 1.8rem;
+
+    color: #4682b4;
+
+    margin-bottom: 8px;
+
+}
+
+
+.feature-box h6 {
+
+    margin: 0;
+
+    color: #1f4e79;
+
+    font-weight: 700;
+
+}
+
+
+.feature-box small {
+
+    color: #6c757d;
+
+}
+
+
+/* ===============================
+   MOBILE
+================================ */
+
+@media (max-width: 600px) {
+
+    .report-page {
+
+        padding: 25px 10px;
+
+    }
+
+    .form-container {
+
+        padding: 25px 18px;
+
+        border-radius: 18px;
+
+    }
+
+    .page-header h3 {
+
+        font-size: 1.5rem;
+
+    }
+
+    .icon-circle {
+
+        width: 75px;
+
+        height: 75px;
+
+        font-size: 2rem;
+
+    }
+
+    .features {
+
+        grid-template-columns: 1fr;
+
+    }
+
+}
+
+</style>
+
+
+<div class="report-page">
+
+    <section
+        class="form-container"
+        aria-labelledby="download-report-card-heading"
+    >
+
+        <!-- PAGE HEADER -->
+
+        <div class="page-header">
+
+            <div class="icon-circle">
+
+                <i class="fas fa-file-pdf"></i>
+
+            </div>
+
+            <h3 id="download-report-card-heading">
+
+                Download Report Cards
+
+            </h3>
+
+            <p>
+
+                Generate professional learner report cards quickly and easily
+
+            </p>
+
+        </div>
+
+
+        <!-- FEATURE BOXES -->
+
+        <div class="features">
+
+            <div class="feature-box">
+
+                <i class="fas fa-file-pdf"></i>
+
+                <h6>PDF Reports</h6>
+
+                <small>Professional format</small>
+
+            </div>
+
+
+            <div class="feature-box">
+
+                <i class="fas fa-users"></i>
+
+                <h6>Multiple Learners</h6>
+
+                <small>Generate in bulk</small>
+
+            </div>
+
+
+            <div class="feature-box">
+
+                <i class="fas fa-download"></i>
+
+                <h6>ZIP / Single PDF</h6>
+
+                <small>Flexible download</small>
+
+            </div>
+
+        </div>
+
+
+        <!-- FLASH MESSAGES -->
+
+        {% with messages =
+            get_flashed_messages(
+                with_categories=true
+            )
+        %}
+
+            {% if messages %}
+
+                {% for category, message in messages %}
+
+                    <div
+                        class="alert alert-{{ category }}"
+                        role="alert"
+                    >
+
+                        {{ message }}
+
+                    </div>
+
+                {% endfor %}
+
+            {% endif %}
+
+        {% endwith %}
+
+
+        <!-- FORM -->
+
+        <form
+            method="POST"
+            id="reportCardForm"
+            class="needs-validation"
+            novalidate
+        >
+
+            {{ form.hidden_tag() }}
+
+
+            <!-- GRADE -->
+
+            <div class="form-group">
+
+                <label for="{{ form.grade.id }}">
+
+                    <i class="fas fa-graduation-cap"></i>
+
+                    {{ form.grade.label }}
+
+                </label>
+
+                {{ form.grade(
+                    class_="form-select",
+                    id=form.grade.id
+                ) }}
+
+                <small class="form-text">
+
+                    Select the grade for the report cards.
+
+                </small>
+
+                {% if form.grade.errors %}
+
+                    <div class="invalid-feedback">
+
+                        {% for error in form.grade.errors %}
+
+                            {{ error }}<br>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- TERM -->
+
+            <div class="form-group">
+
+                <label for="{{ form.term.id }}">
+
+                    <i class="fas fa-calendar-alt"></i>
+
+                    {{ form.term.label }}
+
+                </label>
+
+                {{ form.term(
+                    class_="form-select",
+                    id=form.term.id
+                ) }}
+
+                <small class="form-text">
+
+                    Select the academic term.
+
+                </small>
+
+                {% if form.term.errors %}
+
+                    <div class="invalid-feedback">
+
+                        {% for error in form.term.errors %}
+
+                            {{ error }}<br>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- YEAR -->
+
+            <div class="form-group">
+
+                <label for="{{ form.year.id }}">
+
+                    <i class="fas fa-calendar"></i>
+
+                    {{ form.year.label }}
+
+                </label>
+
+                {{ form.year(
+                    class_="form-control",
+                    id=form.year.id,
+                    placeholder="e.g. 2026"
+                ) }}
+
+                <small class="form-text">
+
+                    Enter the academic year.
+
+                </small>
+
+                {% if form.year.errors %}
+
+                    <div class="invalid-feedback">
+
+                        {% for error in form.year.errors %}
+
+                            {{ error }}<br>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- EXAM TYPE -->
+
+            <div class="form-group">
+
+                <label for="{{ form.exam_type.id }}">
+
+                    <i class="fas fa-file-alt"></i>
+
+                    {{ form.exam_type.label }}
+
+                </label>
+
+                {{ form.exam_type(
+                    class_="form-select",
+                    id=form.exam_type.id
+                ) }}
+
+                <small class="form-text">
+
+                    Select the examination type.
+
+                </small>
+
+                {% if form.exam_type.errors %}
+
+                    <div class="invalid-feedback">
+
+                        {% for error in form.exam_type.errors %}
+
+                            {{ error }}<br>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- PARENT STUDENT -->
+
+            {% if current_user.role == 'parent' %}
+
+            <div class="form-group">
+
+                <label for="{{ form.admission_no.id }}">
+
+                    <i class="fas fa-id-card"></i>
+
+                    {{ form.admission_no.label }}
+
+                </label>
+
+                {{ form.admission_no(
+                    class_="form-select",
+                    id=form.admission_no.id
+                ) }}
+
+                <small class="form-text">
+
+                    Select the learner whose report card you want to download.
+
+                </small>
+
+            </div>
+
+            {% endif %}
+
+
+            <!-- SUBMIT BUTTONS -->
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+                id="submitZipBtn"
+                formaction="{{ url_for('download_report_card') }}"
+            >
+
+                <i class="fas fa-file-archive"></i>
+
+                Download as ZIP (Individual PDFs)
+
+            </button>
+
+            <button
+                type="submit"
+                class="btn btn-secondary-download"
+                id="submitPdfBtn"
+                formaction="{{ url_for('download_all_report_cards_pdf') }}"
+            >
+
+                <i class="fas fa-file-pdf"></i>
+
+                Download as Single PDF (All Students)
+
+            </button>
+
+
+            <!-- LOADING -->
+
+            <div
+                id="loadingSpinner"
+                aria-live="polite"
+            >
+
+                <i class="fas fa-spinner fa-spin"></i>
+
+                Generating report cards. Please wait...
+
+            </div>
+
+        </form>
+
+
+        <!-- INFORMATION -->
+
+        <div class="info-note">
+
+            <i class="fas fa-info-circle"></i>
+
+            <strong>Important:</strong>
+
+            Ensure that marks have been entered for the selected grade,
+            term, year, and examination type before generating report cards.
+            <br><br>
+            <strong>ZIP</strong> → one PDF per student inside a ZIP file.<br>
+            <strong>Single PDF</strong> → all students combined into one multi-page PDF.
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<script>
+
+(function () {
+
+    const form =
+        document.querySelector(
+            'form.needs-validation'
+        );
+
+    const submitZipBtn =
+        document.getElementById(
+            'submitZipBtn'
+        );
+
+    const submitPdfBtn =
+        document.getElementById(
+            'submitPdfBtn'
+        );
+
+    const loadingSpinner =
+        document.getElementById(
+            'loadingSpinner'
+        );
+
+
+    form.addEventListener(
+        'submit',
+        function (event) {
+
+            if (!form.checkValidity()) {
+
+                event.preventDefault();
+
+                event.stopPropagation();
+
+            }
+
+            else {
+
+                if (
+                    !confirm(
+                        'Generating report cards may take a while. Proceed?'
+                    )
+                ) {
+
+                    event.preventDefault();
+
+                }
+
+                else {
+
+                    // Disable both buttons
+                    submitZipBtn.disabled = true;
+                    submitPdfBtn.disabled = true;
+
+                    // Show which one was clicked
+                    const clickedBtn = event.submitter;
+                    if (clickedBtn) {
+                        clickedBtn.innerHTML =
+                            '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                    }
+
+                    loadingSpinner.style.display =
+                        'block';
+
+                }
+
+            }
+
+            form.classList.add(
+                'was-validated'
+            );
+
+        }
+
+    );
+
+})();
+
+</script>
+
+{% endblock %}
