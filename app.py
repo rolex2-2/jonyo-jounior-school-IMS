@@ -121,6 +121,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] =   'postgresql://jonyo-jounior-school-IMS_owner:npg_wdnXJPo7Cj6m@ep-withered-boat-a919os0o-pooler.gwc.azure.neon.tech/jonyo-jounior-school-IMS?sslmode=require&channel_binding=require'
 app.config['WTF_CSRF_ENABLED'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 # Initialize logging
 logging.basicConfig(filename='app.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -640,6 +641,7 @@ def login():
                     role=user.role,
                     grade=user.grade
                 ))
+                session.permanent = True
                 flash('Login successful!', 'success')
                 logger.debug(f"User {user.username} logged in with role {user.role}")
                 return redirect(url_for('dashboard'))
@@ -661,6 +663,7 @@ def logout():
     flash('Logged out successfully!', 'success')
     return redirect(url_for('index'))
 
+    
 # Dashboard Routes
 from flask import render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
