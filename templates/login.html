@@ -1,17 +1,74 @@
 {% extends "base.html" %}
+
+{% block title %}
+Login - Jonyo Junior Secondary School
+{% endblock %}
+
 {% block content %}
 
 <style>
 
-/* =========================
-   LOGIN PAGE BACKGROUND
-========================= */
+/* =====================================================
+   LOGIN PAGE WITH HOMEPAGE BEHIND THE LOGIN FORM
+===================================================== */
 
 .login-page {
 
-    min-height: 80vh;
+    min-height: 100vh;
 
-    padding: 60px 20px;
+    position: relative;
+
+    overflow: hidden;
+
+}
+
+
+/* =====================================================
+   HOMEPAGE BACKGROUND
+===================================================== */
+
+.homepage-background {
+
+    position: fixed;
+
+    top: 0;
+
+    left: 0;
+
+    width: 100%;
+
+    height: 100vh;
+
+    z-index: 0;
+
+    overflow-y: auto;
+
+}
+
+
+/* =====================================================
+   HOMEPAGE HERO
+===================================================== */
+
+.background-hero {
+
+    min-height: 600px;
+
+    background:
+
+        linear-gradient(
+
+            rgba(0, 70, 120, 0.82),
+
+            rgba(0, 130, 150, 0.75)
+
+        ),
+
+        url("{{ url_for('static', filename='school.jpeg') }}");
+
+    background-size: cover;
+
+    background-position: center;
 
     display: flex;
 
@@ -19,26 +76,160 @@
 
     align-items: center;
 
-    background:
+    text-align: center;
 
-        linear-gradient(
-
-            135deg,
-
-            rgba(0, 105, 92, 0.92),
-
-            rgba(21, 101, 192, 0.90),
-
-            rgba(106, 27, 154, 0.90)
-
-        );
+    color: white;
 
 }
 
 
-/* =========================
-   LOGIN CARD
-========================= */
+.background-hero-content {
+
+    max-width: 1000px;
+
+    padding: 30px;
+
+}
+
+
+.background-logo {
+
+    width: 300px;
+
+    height: 90px;
+
+    object-fit: contain;
+
+    background: white;
+
+    border: 5px solid #ffca28;
+
+    border-radius: 50%;
+
+    padding: 5px;
+
+    margin-bottom: 25px;
+
+}
+
+
+.background-hero h1 {
+
+    font-size: 3.5rem;
+
+    font-weight: 900;
+
+    text-shadow:
+
+        4px 4px 5px rgba(0, 0, 0, 0.6);
+
+}
+
+
+.background-motto {
+
+    color: #ffca28;
+
+    font-size: 1.5rem;
+
+    font-weight: bold;
+
+    margin: 20px 0;
+
+}
+
+
+/* =====================================================
+   HOMEPAGE NAVIGATION
+===================================================== */
+
+.background-navigation {
+
+    background:
+
+        linear-gradient(
+
+            90deg,
+
+            #00796b,
+
+            #1976d2,
+
+            #6a1b9a
+
+        );
+
+    padding: 20px;
+
+    text-align: center;
+
+}
+
+
+.background-navigation a {
+
+    color: white;
+
+    text-decoration: none;
+
+    font-weight: bold;
+
+    margin: 0 25px;
+
+}
+
+
+/* =====================================================
+   DARK TRANSPARENT OVERLAY
+===================================================== */
+
+.login-overlay {
+
+    position: fixed;
+
+    top: 0;
+
+    left: 0;
+
+    width: 100%;
+
+    height: 100vh;
+
+    background:
+
+        rgba(0, 0, 0, 0.35);
+
+    z-index: 1;
+
+}
+
+
+/* =====================================================
+   LOGIN CONTENT
+===================================================== */
+
+.login-content {
+
+    position: relative;
+
+    z-index: 2;
+
+    min-height: 100vh;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    padding: 60px 20px;
+
+}
+
+
+/* =====================================================
+   FLOATING LOGIN CARD
+===================================================== */
 
 .form-container {
 
@@ -46,7 +237,9 @@
 
     max-width: 500px;
 
-    background: rgba(255, 255, 255, 0.97);
+    background:
+
+        rgba(255, 255, 255, 0.96);
 
     padding: 40px 35px;
 
@@ -54,24 +247,30 @@
 
     box-shadow:
 
-        0 15px 40px rgba(0, 0, 0, 0.35);
+        0 20px 60px rgba(0, 0, 0, 0.55);
 
-    animation: slideUp 0.8s ease;
+    animation:
+
+        floatLogin 0.8s ease;
 
 }
 
 
-/* =========================
-   ANIMATION
-========================= */
+/* =====================================================
+   FLOATING ANIMATION
+===================================================== */
 
-@keyframes slideUp {
+@keyframes floatLogin {
 
     from {
 
         opacity: 0;
 
-        transform: translateY(40px);
+        transform:
+
+            translateY(40px)
+
+            scale(0.95);
 
     }
 
@@ -79,16 +278,65 @@
 
         opacity: 1;
 
-        transform: translateY(0);
+        transform:
+
+            translateY(0)
+
+            scale(1);
 
     }
 
 }
 
 
-/* =========================
+/* =====================================================
+   LOGIN ICON
+===================================================== */
+
+.login-icon {
+
+    width: 85px;
+
+    height: 85px;
+
+    margin: 0 auto 20px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    color: white;
+
+    font-size: 2.5rem;
+
+    background:
+
+        linear-gradient(
+
+            135deg,
+
+            #00695c,
+
+            #1565c0,
+
+            #6a1b9a
+
+        );
+
+    box-shadow:
+
+        0 8px 20px rgba(0, 0, 0, 0.3);
+
+}
+
+
+/* =====================================================
    LOGIN TITLE
-========================= */
+===================================================== */
 
 .login-title {
 
@@ -114,9 +362,9 @@
 }
 
 
-/* =========================
+/* =====================================================
    FORM GROUP
-========================= */
+===================================================== */
 
 .form-group {
 
@@ -126,10 +374,6 @@
 
 }
 
-
-/* =========================
-   LABEL
-========================= */
 
 .form-group label {
 
@@ -153,9 +397,9 @@
 }
 
 
-/* =========================
+/* =====================================================
    INPUTS
-========================= */
+===================================================== */
 
 .form-control,
 
@@ -186,7 +430,9 @@
 
     box-shadow:
 
-        0 0 0 4px rgba(21, 101, 192, 0.15);
+        0 0 0 4px
+
+        rgba(21, 101, 192, 0.15);
 
     outline: none;
 
@@ -195,9 +441,9 @@
 }
 
 
-/* =========================
-   PASSWORD ICON
-========================= */
+/* =====================================================
+   PASSWORD TOGGLE
+===================================================== */
 
 .toggle-password {
 
@@ -215,8 +461,6 @@
 
     font-size: 1.2rem;
 
-    transition: 0.3s;
-
 }
 
 
@@ -227,9 +471,9 @@
 }
 
 
-/* =========================
+/* =====================================================
    LOGIN BUTTON
-========================= */
+===================================================== */
 
 .btn-primary {
 
@@ -288,16 +532,12 @@
 
         );
 
-    box-shadow:
-
-        0 10px 20px rgba(0, 0, 0, 0.3);
-
 }
 
 
-/* =========================
+/* =====================================================
    ERROR MESSAGES
-========================= */
+===================================================== */
 
 .error {
 
@@ -312,9 +552,9 @@
 }
 
 
-/* =========================
+/* =====================================================
    REGISTER LINK
-========================= */
+===================================================== */
 
 .register-link {
 
@@ -347,60 +587,25 @@
 }
 
 
-/* =========================
-   LOGIN DECORATION
-========================= */
-
-.login-icon {
-
-    width: 85px;
-
-    height: 85px;
-
-    margin: 0 auto 20px;
-
-    border-radius: 50%;
-
-    display: flex;
-
-    justify-content: center;
-
-    align-items: center;
-
-    color: white;
-
-    font-size: 2.5rem;
-
-    background:
-
-        linear-gradient(
-
-            135deg,
-
-            #00695c,
-
-            #1565c0,
-
-            #6a1b9a
-
-        );
-
-    box-shadow:
-
-        0 8px 20px rgba(0, 0, 0, 0.25);
-
-}
-
-
-/* =========================
+/* =====================================================
    MOBILE RESPONSIVENESS
-========================= */
+===================================================== */
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
 
-    .login-page {
 
-        padding: 35px 15px;
+    .background-hero h1 {
+
+        font-size: 2.2rem;
+
+    }
+
+
+    .background-logo {
+
+        width: 220px;
+
+        height: 75px;
 
     }
 
@@ -412,9 +617,9 @@
     }
 
 
-    .login-title {
+    .login-content {
 
-        font-size: 1.6rem;
+        padding: 35px 15px;
 
     }
 
@@ -423,306 +628,479 @@
 </style>
 
 
-<!-- =========================
+<!-- =====================================================
      LOGIN PAGE
-========================= -->
+===================================================== -->
 
 <div class="login-page">
 
 
-    <div class="form-container">
+    <!-- =================================================
+         HOMEPAGE BEHIND THE LOGIN FORM
+    ================================================== -->
 
+    <div class="homepage-background">
 
-        <!-- LOGIN ICON -->
 
-        <div class="login-icon">
+        <section class="background-hero">
 
-            <i class="fas fa-sign-in-alt"></i>
 
-        </div>
+            <div class="background-hero-content">
 
 
-        <!-- TITLE -->
+                <img
 
-        <h3 class="login-title">
+                    src="{{ url_for('static', filename='logo.png') }}"
 
-            Welcome Back
+                    alt="Jonyo Junior Secondary School Logo"
 
-        </h3>
-
-
-        <p class="text-center text-muted mb-4">
-
-            Login to access the Jonyo Junior Secondary School system
-
-        </p>
-
-
-        <!-- FLASH MESSAGES -->
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-
-            {% if messages %}
-
-                {% for category, message in messages %}
-
-
-                    <div
-
-                        class="alert
-
-                        alert-{{ category }}
-
-                        alert-dismissible
-
-                        fade show"
-
-                        role="alert"
-
-                    >
-
-                        {{ message }}
-
-
-                        <button
-
-                            type="button"
-
-                            class="btn-close"
-
-                            data-bs-dismiss="alert"
-
-                            aria-label="Close"
-
-                        >
-
-                        </button>
-
-
-                    </div>
-
-
-                {% endfor %}
-
-            {% endif %}
-
-        {% endwith %}
-
-
-        <!-- LOGIN FORM -->
-
-        <form
-
-            method="POST"
-
-            action="{{ url_for('login') }}"
-
-        >
-
-
-            {{ form.hidden_tag() }}
-
-
-            <!-- USERNAME -->
-
-            <div class="form-group">
-
-
-                <label for="username">
-
-
-                    <i class="fas fa-user"></i>
-
-                    Username
-
-
-                </label>
-
-
-                {{ form.username(
-
-                    class="form-control",
-
-                    id="username",
-
-                    placeholder="Enter your username"
-
-                ) }}
-
-
-                {% for error in form.username.errors %}
-
-
-                    <span class="error">
-
-                        {{ error }}
-
-                    </span>
-
-
-                {% endfor %}
-
-
-            </div>
-
-
-            <!-- PASSWORD -->
-
-            <div class="form-group">
-
-
-                <label for="password">
-
-
-                    <i class="fas fa-lock"></i>
-
-                    Password
-
-
-                </label>
-
-
-                {{ form.password(
-
-                    class="form-control",
-
-                    id="password",
-
-                    placeholder="Enter your password"
-
-                ) }}
-
-
-                <i
-
-                    class="fas fa-eye toggle-password"
-
-                    onclick="togglePassword('password')"
-
-                    aria-label="Toggle password visibility"
-
-                    role="button"
+                    class="background-logo"
 
                 >
 
-                </i>
+
+                <h1>
+
+                    JONYO JUNIOR SECONDARY SCHOOL
+
+                </h1>
 
 
-                {% for error in form.password.errors %}
+                <div class="background-motto">
+
+                    ⭐ STRIVE FOR SUCCESS ⭐
+
+                </div>
 
 
-                    <span class="error">
-
-                        {{ error }}
-
-                    </span>
+                {% if term_info %}
 
 
-                {% endfor %}
+                    <p>
+
+                        <strong>
+
+                            {{ term_info.get('year', '2026') }}
+
+                            -
+
+                            {{ term_info.get('term', 'Term 2') }}
+
+                        </strong>
+
+                    </p>
+
+
+                    <p>
+
+                        Principal:
+
+                        <strong>
+
+                            {{ term_info.get(
+
+                                'principal',
+
+                                'MANASSE KOLA'
+
+                            ) }}
+
+                        </strong>
+
+                    </p>
+
+
+                    <p>
+
+                        Term Dates:
+
+                        {{ term_info.get(
+
+                            'start_date',
+
+                            'Not Set'
+
+                        ) }}
+
+                        to
+
+                        {{ term_info.get(
+
+                            'end_date',
+
+                            'Not Set'
+
+                        ) }}
+
+                    </p>
+
+
+                {% endif %}
 
 
             </div>
 
-
-            <!-- ROLE -->
-
-            <div class="form-group">
+        </section>
 
 
-                <label for="role">
+        <!-- HOMEPAGE NAVIGATION -->
+
+        <nav class="background-navigation">
 
 
-                    <i class="fas fa-user-tag"></i>
+            <a href="#">
 
-                    Role
+                <i class="fas fa-home"></i>
 
-
-                </label>
-
-
-                {{ form.role(
-
-                    class="form-select",
-
-                    id="role"
-
-                ) }}
-
-
-                {% for error in form.role.errors %}
-
-
-                    <span class="error">
-
-                        {{ error }}
-
-                    </span>
-
-
-                {% endfor %}
-
-
-            </div>
-
-
-            <!-- LOGIN BUTTON -->
-
-            <button
-
-                type="submit"
-
-                class="btn btn-primary"
-
-            >
-
-
-                <i class="fas fa-sign-in-alt"></i>
-
-                Login
-
-
-            </button>
-
-
-        </form>
-
-
-        <!-- REGISTER LINK -->
-
-        <p class="register-link">
-
-
-            Don't have an account?
-
-
-            <a href="{{ url_for('register') }}">
-
-                Register here
+                Home
 
             </a>
 
 
-        </p>
+            <a href="#">
+
+                <i class="fas fa-info-circle"></i>
+
+                About
+
+            </a>
+
+
+            <a href="#">
+
+                <i class="fas fa-phone"></i>
+
+                Contact
+
+            </a>
+
+
+        </nav>
 
 
     </div>
 
+
+    <!-- =================================================
+         DARK OVERLAY
+    ================================================== -->
+
+    <div class="login-overlay"></div>
+
+
+    <!-- =================================================
+         FLOATING LOGIN FORM
+    ================================================== -->
+
+    <div class="login-content">
+
+
+        <div class="form-container">
+
+
+            <!-- LOGIN ICON -->
+
+            <div class="login-icon">
+
+                <i class="fas fa-sign-in-alt"></i>
+
+            </div>
+
+
+            <!-- TITLE -->
+
+            <h3 class="login-title">
+
+                <i class="fas fa-school"></i>
+
+                Welcome Back
+
+            </h3>
+
+
+            <p class="text-center text-muted mb-4">
+
+                Login to access the Jonyo Junior
+
+                Secondary School system
+
+            </p>
+
+
+            <!-- FLASH MESSAGES -->
+
+            {% with messages = get_flashed_messages(
+
+                with_categories=true
+
+            ) %}
+
+
+                {% if messages %}
+
+
+                    {% for category, message in messages %}
+
+
+                        <div
+
+                            class="alert
+
+                            alert-{{ category }}
+
+                            alert-dismissible
+
+                            fade show"
+
+                            role="alert"
+
+                        >
+
+                            {{ message }}
+
+
+                            <button
+
+                                type="button"
+
+                                class="btn-close"
+
+                                data-bs-dismiss="alert"
+
+                                aria-label="Close"
+
+                            >
+
+                            </button>
+
+
+                        </div>
+
+
+                    {% endfor %}
+
+
+                {% endif %}
+
+
+            {% endwith %}
+
+
+            <!-- LOGIN FORM -->
+
+            <form
+
+                method="POST"
+
+                action="{{ url_for('login') }}"
+
+            >
+
+
+                {{ form.hidden_tag() }}
+
+
+                <!-- USERNAME -->
+
+                <div class="form-group">
+
+
+                    <label for="username">
+
+                        <i class="fas fa-user"></i>
+
+                        Username
+
+                    </label>
+
+
+                    {{ form.username(
+
+                        class="form-control",
+
+                        id="username",
+
+                        placeholder="Enter your username",
+
+                        autocomplete="username"
+
+                    ) }}
+
+
+                    {% for error in form.username.errors %}
+
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- PASSWORD -->
+
+                <div class="form-group">
+
+
+                    <label for="password">
+
+                        <i class="fas fa-lock"></i>
+
+                        Password
+
+                    </label>
+
+
+                    {{ form.password(
+
+                        class="form-control",
+
+                        id="password",
+
+                        placeholder="Enter your password",
+
+                        autocomplete="current-password"
+
+                    ) }}
+
+
+                    <i
+
+                        class="fas fa-eye toggle-password"
+
+                        onclick="togglePassword(
+
+                            'password',
+
+                            this
+
+                        )"
+
+                        role="button"
+
+                    >
+
+                    </i>
+
+
+                    {% for error in form.password.errors %}
+
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- ROLE -->
+
+                <div class="form-group">
+
+
+                    <label for="role">
+
+                        <i class="fas fa-user-tag"></i>
+
+                        Role
+
+                    </label>
+
+
+                    {{ form.role(
+
+                        class="form-select",
+
+                        id="role"
+
+                    ) }}
+
+
+                    {% for error in form.role.errors %}
+
+
+                        <span class="error">
+
+                            {{ error }}
+
+                        </span>
+
+
+                    {% endfor %}
+
+
+                </div>
+
+
+                <!-- LOGIN BUTTON -->
+
+                <button
+
+                    type="submit"
+
+                    class="btn btn-primary"
+
+                >
+
+                    <i class="fas fa-sign-in-alt"></i>
+
+                    Login
+
+                </button>
+
+
+            </form>
+
+
+            <!-- REGISTER LINK -->
+
+            <p class="register-link">
+
+
+                Don't have an account?
+
+
+                <a href="{{ url_for('register') }}">
+
+                    Register here
+
+                </a>
+
+
+            </p>
+
+
+        </div>
+
+
+    </div>
+
+
 </div>
 
 
-<!-- =========================
+<!-- =====================================================
      PASSWORD TOGGLE
-========================= -->
+===================================================== -->
 
 <script>
 
-function togglePassword(id) {
+function togglePassword(id, icon) {
 
 
     const input = document.getElementById(id);
-
-
-    const icon = input.nextElementSibling;
 
 
     if (input.type === "password") {
@@ -737,15 +1115,6 @@ function togglePassword(id) {
         icon.classList.add("fa-eye-slash");
 
 
-        icon.setAttribute(
-
-            "aria-label",
-
-            "Hide password"
-
-        );
-
-
     } else {
 
 
@@ -757,19 +1126,11 @@ function togglePassword(id) {
 
         icon.classList.add("fa-eye");
 
-
-        icon.setAttribute(
-
-            "aria-label",
-
-            "Show password"
-
-        );
-
     }
 
 }
 
 </script>
+
 
 {% endblock %}
