@@ -7,7 +7,7 @@ from utils import generate_teacher_password, generate_excel_results, generate_re
 from wtforms import StringField
 from wtforms.validators import DataRequired
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from utils import generate_teacher_password, generate_excel_results, generate_report_card, generate_fee_statement, generate_fee_statement_excel, get_performance_levels, get_points, get_teacher_name, get_rank, get_total_fee, get_amount_paid, get_balance, get_class_teacher_comment, get_principal_comment, get_class_teacher_name, get_principal_name
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, Response
@@ -663,7 +663,7 @@ def logout():
     flash('Logged out successfully!', 'success')
     return redirect(url_for('index'))
 
-    
+
 # Dashboard Routes
 from flask import render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
